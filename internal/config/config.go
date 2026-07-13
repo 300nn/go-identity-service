@@ -7,6 +7,7 @@ type Config struct {
 	AppName     string
 	Version     string
 	Environment string
+	LogLevel    string
 }
 
 func Load() Config {
@@ -15,6 +16,7 @@ func Load() Config {
 		AppName:     getEnv("APP_NAME", "go-crud-api"),
 		Version:     getEnv("VERSION", "dev"),
 		Environment: getEnv("APP_ENV", "local"),
+		LogLevel:    getEnv("LOG_LEVEL", "info"),
 	}
 }
 

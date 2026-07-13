@@ -3,6 +3,8 @@ package app
 import (
 	"CrudTutorialProject/internal/config"
 	"CrudTutorialProject/internal/httpserver"
+	"CrudTutorialProject/internal/logger"
+	"CrudTutorialProject/internal/middleware"
 	"CrudTutorialProject/internal/response"
 	"CrudTutorialProject/internal/user"
 	"context"
@@ -19,13 +21,11 @@ import (
 func Run() error {
 	cfg := config.Load()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
+	log := logger.New(cfg.LogLevel)
 
 	mux := http.NewServeMux()
 
-	initUserModule(mux, logger)
+	initUserModule(mux, log)
 
 	mux.HandleFunc("GET /ready", func(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{
@@ -60,14 +60,25 @@ func Run() error {
 		})
 	})
 
+	mux.HandleFunc("GET /panic", func(w http.ResponseWriter, r *http.Request) {
+		panic("test panic")
+	})
+
+	handler := middleware.Chain(
+		mux,
+		middleware.RequestId,
+		middleware.Logging(log),
+		middleware.Recovery(log),
+	)
+
 	server := httpserver.New(httpserver.Config{
 		Port: cfg.HttpPort,
-	}, mux)
+	}, handler)
 
 	errCh := make(chan error, 1)
 
 	go func() {
-		logger.Info("starting server", "addr", server.Addr)
+		log.Info("starting server", "addr", server.Addr)
 
 		if err := server.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
 			errCh <- fmt.Errorf("listen and serve: %w", err)
@@ -84,7 +95,7 @@ func Run() error {
 	case err := <-errCh:
 		return err
 	case sig := <-shutDownCh:
-		logger.Info("shutdown signal received", "signal", sig.String())
+		log.Info("shutdown signal received", "signal", sig.String())
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -93,7 +104,7 @@ func Run() error {
 			return fmt.Errorf("shutdown server: %w", err)
 		}
 
-		logger.Info("server stopped gracefully")
+		log.Info("server stopped gracefully")
 		return nil
 	}
 
