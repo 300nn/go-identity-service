@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: go-crud-postgres
+    environment:
+      POSTGRES_DB: go_crud
+      POSTGRES_USER: go_crud
+      POSTGRES_PASSWORD: go crud
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/liv/postgresql/data
+
+
+volumes:
+  postgres_data:

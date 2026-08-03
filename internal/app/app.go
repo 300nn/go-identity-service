@@ -19,9 +19,13 @@ import (
 )
 
 func Run() error {
-	cfg := config.Load()
+	cfg, err := config.Load("config.yml")
 
-	log := logger.New(cfg.LogLevel)
+	if err != nil {
+		return err
+	}
+
+	log := logger.New(cfg.Log.Level)
 
 	mux := http.NewServeMux()
 
@@ -47,16 +51,16 @@ func Run() error {
 
 	mux.HandleFunc("GET /info", func(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{
-			"name":        cfg.AppName,
-			"version":     cfg.Version,
-			"environment": cfg.Environment,
+			"name":        cfg.App.Name,
+			"version":     cfg.App.Version,
+			"environment": cfg.App.Environment,
 		})
 	})
 
 	mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{
-			"name":    cfg.AppName,
-			"version": cfg.Version,
+			"name":    cfg.App.Name,
+			"version": cfg.App.Version,
 		})
 	})
 
@@ -71,9 +75,10 @@ func Run() error {
 		middleware.Recovery(log),
 	)
 
-	server := httpserver.New(httpserver.Config{
-		Port: cfg.HttpPort,
-	}, handler)
+	server := httpserver.New(
+		cfg.HTTP,
+		handler,
+	)
 
 	errCh := make(chan error, 1)
 

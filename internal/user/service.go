@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/mail"
 	"sort"
 	"strings"
 )
@@ -36,8 +37,8 @@ func (s *Service) CreateUser(ctx context.Context, request CreateUserInput) (User
 	email := strings.TrimSpace(request.Email)
 	age := request.Age
 
-	if name == "" || email == "" || age < 0 {
-		return User{}, NewInvalidUserInputError()
+	if err := validateUserInput(name, email, age); err != nil {
+		return User{}, err
 	}
 
 	exists, err := s.repo.ExistsByEmail(ctx, email)
@@ -185,14 +186,20 @@ func validateUserInput(name string, email string, age int) error {
 
 	if strings.TrimSpace(name) == "" {
 		fields["name"] = "is required"
+	} else if len(name) < 2 || len(name) > 100 {
+		fields["name"] = "min len 2 and max len 100"
 	}
 
 	if strings.TrimSpace(email) == "" {
 		fields["email"] = "is required"
+	} else if len(email) > 255 {
+		fields["email"] = "max email len is 255"
+	} else if _, err := mail.ParseAddress(email); err != nil {
+		fields["email"] = "not valid email"
 	}
 
-	if age < 0 {
-		fields["age"] = "must be greater than or equal to 0"
+	if age < 0 || age > 150 {
+		fields["age"] = "must be greater than or equal to 0 and lower than 150"
 	}
 
 	if len(fields) > 0 {

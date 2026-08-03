@@ -1,20 +1,17 @@
 package httpserver
 
 import (
+	"CrudTutorialProject/internal/config"
 	"net/http"
-	"time"
 )
 
-type Config struct {
-	Port string
-}
+func New(cfg config.HTTPConfig, handler http.Handler) *http.Server {
 
-func New(cfg Config, handler http.Handler) *http.Server {
 	return &http.Server{
-		Addr:         ":" + cfg.Port,
+		Addr:         cfg.Address(),
 		Handler:      handler,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
 	}
 }

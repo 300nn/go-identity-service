@@ -1,0 +1,21 @@
+app:
+  name: "go-crud-api"
+  version: "test"
+  environment: "local"
+
+http:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout: "5s"
+  write_timeout: "10s"
+  idle_timeout: "60s"
+
+database:
+  host: "localhost"
+  port: 5432
+  name: "go_crud"
+  user: "go_crud"
+  password: "go_crud"
+
+log:
+  level: "info"
