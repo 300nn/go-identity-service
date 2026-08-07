@@ -5,9 +5,9 @@ services:
     environment:
       POSTGRES_DB: go_crud
       POSTGRES_USER: go_crud
-      POSTGRES_PASSWORD: go crud
+      POSTGRES_PASSWORD: go_crud
     ports:
-      - 5432:5432
+      - "15432:5432"
     volumes:
       - postgres_data:/var/liv/postgresql/data
 

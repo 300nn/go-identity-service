@@ -5,11 +5,13 @@ import (
 	"CrudTutorialProject/internal/httpserver"
 	"CrudTutorialProject/internal/logger"
 	"CrudTutorialProject/internal/middleware"
+	"CrudTutorialProject/internal/postgres"
 	"CrudTutorialProject/internal/response"
 	"CrudTutorialProject/internal/user"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"net/http"
 	"os"
@@ -29,7 +31,17 @@ func Run() error {
 
 	mux := http.NewServeMux()
 
-	initUserModule(mux, log)
+	ctx := context.Background()
+
+	dbPool, err := postgres.NewPool(ctx, &cfg.Database)
+
+	if err != nil {
+		return fmt.Errorf("connect postgres: %w", err)
+	}
+
+	defer dbPool.Close()
+
+	initUserModule(mux, log, dbPool)
 
 	mux.HandleFunc("GET /ready", func(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{
@@ -115,8 +127,8 @@ func Run() error {
 
 }
 
-func initUserModule(mux *http.ServeMux, logger *slog.Logger) {
-	userRepo := user.NewMemoryRepository()
+func initUserModule(mux *http.ServeMux, logger *slog.Logger, pool *pgxpool.Pool) {
+	userRepo := user.NewPostgresRepository(pool)
 	userService := user.NewService(userRepo)
 	userHandler := user.NewHandler(userService, logger)
 	userHandler.RegisterRouts(mux)

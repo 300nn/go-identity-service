@@ -12,10 +12,16 @@ http:
 
 database:
   host: "localhost"
-  port: 5432
+  port: 15432
   name: "go_crud"
   user: "go_crud"
   password: "go_crud"
+  pool:
+    min_cons: 1
+    max_cons: 10
+    max_con_life_time: 1h
+    max_con_idle_time: 30m
+    health_check_period: 1m
 
 log:
   level: "info"

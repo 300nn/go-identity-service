@@ -30,11 +30,20 @@ type HTTPConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host     string `yaml:"host" env:"HOST" env-default:"localhost" validate:"required"`
-	Port     int    `yaml:"port" env:"PORT" env-default:"5432" validate:"gte=1,lte=65535"`
-	Name     string `yaml:"name" env:"NAME" env-default:"go_crud" validate:"required"`
-	User     string `yaml:"user" env:"USER" env-default:"go_crud" validate:"required"`
-	Password string `yaml:"password" env:"PASSWORD"`
+	Host     string     `yaml:"host" env:"HOST" env-default:"localhost" validate:"required"`
+	Port     int        `yaml:"port" env:"PORT" env-default:"5432" validate:"gte=1,lte=65535"`
+	Name     string     `yaml:"name" env:"NAME" env-default:"go_crud" validate:"required"`
+	User     string     `yaml:"user" env:"USER" env-default:"go_crud" validate:"required"`
+	Password string     `yaml:"password" env:"PASSWORD"`
+	Pool     PoolConfig `yaml:"pool" env-prefix:"POOL_"`
+}
+
+type PoolConfig struct {
+	MaxCons           int32         `yaml:"max_cons" env:"MAX_CONS" env-default:"10" validate:"gt=0"`
+	MinCons           int32         `yaml:"min_cons" env:"MIN_CONS" env-default:"10" validate:"gt=0"`
+	MaxConLifeTime    time.Duration `yaml:"max_con_life_time" env:"MAX_CON_LIFE_TIME" env-default:"1h" validate:"gt=0"`
+	MaxConIdleTime    time.Duration `yaml:"max_con_idle_time" env:"MAX_CON_IDLE_TIME" env-default:"20m" validate:"gt=0"`
+	HealthCheckPeriod time.Duration `yaml:"health_check_period" env:"HEALTH_CHECK_PERIOD" env-default:"1m" validate:"gt=0"`
 }
 
 type LogConfig struct {
@@ -47,7 +56,15 @@ type AppConfig struct {
 	Environment string `yaml:"environment" env:"ENVIRONMENT" env-default:"local" validate:"oneof=local development staging production"`
 }
 
-func (h HTTPConfig) Address() string {
+func (d *DatabaseConfig) DatabaseUrl() string {
+	return "postgres://" + d.User + ":" + d.Password + "@" + d.Host + ":" + strconv.Itoa(d.Port) + "/" + d.Name
+}
+
+func (d *DatabaseConfig) DatabaseUrlWithoutSSL() string {
+	return "postgres://" + d.User + ":" + d.Password + "@" + d.Host + ":" + strconv.Itoa(d.Port) + "/" + d.Name + "?sslmode=disable"
+}
+
+func (h *HTTPConfig) Address() string {
 	return net.JoinHostPort(h.Host, strconv.Itoa(h.Port))
 }
 
