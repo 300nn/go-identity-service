@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
-	"sort"
 	"strings"
 )
 
@@ -20,6 +19,18 @@ func NewService(repo Repository, txFactory TxRepositoryFactory) *Service {
 		repo:      repo,
 		txFactory: txFactory,
 	}
+}
+
+type ListUsersInput struct {
+	Limit  int
+	Offset int
+	Email  string
+	Sort   string
+}
+
+type ListUsersOutput struct {
+	Users []User
+	Total int64
 }
 
 type CreateUserInput struct {
@@ -95,17 +106,24 @@ func (s *Service) GetUser(ctx context.Context, id int64) (User, error) {
 	return user, nil
 }
 
-func (s *Service) ListUsers(ctx context.Context) ([]User, error) {
-	users, err := s.repo.FindAll(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("find all users: %w", err)
-	}
+func (s *Service) ListUsers(ctx context.Context, input ListUsersInput) (ListUsersOutput, error) {
+	email := strings.TrimSpace(strings.ToLower(input.Email))
 
-	sort.Slice(users, func(i, j int) bool {
-		return users[i].ID < users[j].ID
+	result, err := s.repo.List(ctx, ListUsersFilter{
+		Limit:  input.Limit,
+		Offset: input.Offset,
+		Email:  email,
+		Sort:   input.Sort,
 	})
 
-	return users, nil
+	if err != nil {
+		return ListUsersOutput{}, fmt.Errorf("list users: %w", err)
+	}
+
+	return ListUsersOutput{
+		Users: result.Users,
+		Total: result.Total,
+	}, nil
 }
 
 func (s *Service) UpdateUser(ctx context.Context, id int64, user UpdateUserInput) (User, error) {

@@ -2,6 +2,8 @@ package user
 
 import (
 	"context"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -125,4 +127,61 @@ func (r *MemoryRepository) CreateProfile(ctx context.Context, profile Profile) (
 }
 func (r *MemoryRepository) CreateEvent(ctx context.Context, event Event) (Event, error) {
 	return Event{}, nil
+}
+
+func (r *MemoryRepository) List(ctx context.Context, filter ListUsersFilter) (ListUsersResult, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	email := strings.TrimSpace(strings.ToLower(filter.Email))
+
+	users := make([]User, 0, len(r.users))
+
+	for _, u := range r.users {
+		if email != "" && !strings.Contains(strings.ToLower(u.Email), email) {
+			continue
+		}
+
+		users = append(users, u)
+	}
+
+	sortUsers(users, filter.Sort)
+
+	total := int64(len(users))
+
+	start := filter.Offset
+	if start > len(users) {
+		start = len(users)
+	}
+
+	end := start + filter.Limit
+	if end > len(users) {
+		end = len(users)
+	}
+
+	return ListUsersResult{
+		Users: users[start:end],
+		Total: total,
+	}, nil
+}
+
+func sortUsers(users []User, sortValue string) {
+	sort.Slice(users, func(i, j int) bool {
+		switch sortValue {
+		case "id_desc":
+			return users[i].ID > users[j].ID
+		case "email_asc":
+			return users[i].Email < users[j].Email
+		case "email_desc":
+			return users[i].Email > users[j].Email
+		case "created_at_asc":
+			return users[i].CreatedAt.Before(users[j].CreatedAt)
+		case "created_at_desc":
+			return users[i].CreatedAt.After(users[j].CreatedAt)
+		case "id_asc":
+			fallthrough
+		default:
+			return users[i].ID < users[j].ID
+		}
+	})
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"strings"
 )
 
 type DBTX interface {
@@ -122,6 +123,60 @@ func (r *PostgresRepository) FindAll(ctx context.Context) ([]User, error) {
 
 	return users, nil
 }
+
+func (r *PostgresRepository) List(ctx context.Context, filter ListUsersFilter) (ListUsersResult, error) {
+	email := strings.TrimSpace(filter.Email)
+
+	const countQuery = `
+		select count(*)
+		from users
+		where ($1 = '' or email ilike '%' || $1 || '%');
+	`
+	var total int64
+
+	if err := r.db.QueryRow(ctx, countQuery, email).Scan(&total); err != nil {
+		return ListUsersResult{}, fmt.Errorf("count users: %w", err)
+	}
+
+	orderBy := usersOrderBy(filter.Sort)
+
+	query := fmt.Sprintf(`
+		select id, name, email, age, created_at, updated_at 
+		from users
+		where ($1 = '' or email ILIKE '%%' || $1 || '%%')
+		order by %s
+		limit $2 offset $3
+	`, orderBy)
+
+	rows, err := r.db.Query(ctx, query, email, filter.Limit, filter.Offset)
+	if err != nil {
+		return ListUsersResult{}, err
+	}
+	defer rows.Close()
+
+	users := make([]User, 0)
+
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Email,
+			&user.Age,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		); err != nil {
+			return ListUsersResult{}, fmt.Errorf("scan user row: %w", err)
+		}
+
+		users = append(users, user)
+	}
+	return ListUsersResult{
+		Users: users,
+		Total: total,
+	}, nil
+}
+
 func (r *PostgresRepository) Update(ctx context.Context, user User) (User, error) {
 	const query = `
 		UPDATE users
@@ -265,6 +320,25 @@ func (r *PostgresRepository) CreateEvent(ctx context.Context, event Event) (Even
 	}
 
 	return created, nil
+}
+
+func usersOrderBy(sort string) string {
+	switch sort {
+	case "id_asc":
+		return "id ASC"
+	case "id_desc":
+		return "id DESC"
+	case "email_asc":
+		return "email ASC"
+	case "email_desc":
+		return "email DESC"
+	case "created_at_asc":
+		return "created_at ASC"
+	case "created_at_desc":
+		return "created_at DESC"
+	default:
+		return "id ASC"
+	}
 }
 
 func isUniqueViolation(err error) bool {

@@ -1,6 +1,7 @@
 package user
 
 import (
+	"CrudTutorialProject/internal/apperror"
 	"CrudTutorialProject/internal/response"
 	"CrudTutorialProject/internal/validation"
 	"log/slog"
@@ -66,14 +67,33 @@ func (h *Handler) GetUserById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := h.service.ListUsers(r.Context())
+	req, err := h.ParseListUsersRequest(r)
 
 	if err != nil {
 		response.HandleError(w, h.logger, err)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, ToResponseList(users))
+	result, err := h.service.ListUsers(r.Context(), ListUsersInput{
+		Limit:  req.Limit,
+		Offset: req.Offset,
+		Email:  req.Email,
+		Sort:   req.Sort,
+	})
+
+	if err != nil {
+		response.HandleError(w, h.logger, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, response.Page[UserResponse]{
+		Items: ToResponseList(result.Users),
+		Pagination: response.Pagination{
+			Limit:  req.Limit,
+			Offset: req.Offset,
+			Total:  result.Total,
+		},
+	})
 }
 
 func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -162,6 +182,55 @@ func (h *Handler) CreateUserWithProfile(w http.ResponseWriter, r *http.Request) 
 		User:    ToResponse(created.User),
 		Profile: ProfileToResponse(created.Profile),
 	})
+}
+
+func (h *Handler) ParseListUsersRequest(r *http.Request) (ListUsersRequest, error) {
+	query := r.URL.Query()
+
+	fields := make(map[string]string)
+
+	limit := parseIntQuery(query.Get("limit"), "limit", 20, fields)
+	offset := parseIntQuery(query.Get("offset"), "offset", 0, fields)
+
+	sortValue := strings.TrimSpace(query.Get("sort"))
+
+	if sortValue == "" {
+		sortValue = "id_asc"
+	}
+
+	req := ListUsersRequest{
+		Limit:  limit,
+		Offset: offset,
+		Email:  query.Get("email"),
+		Sort:   sortValue,
+	}
+
+	if len(fields) > 0 {
+		return req, apperror.NewFieldValidationError(fields)
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		return req, err
+	}
+
+	return req, nil
+}
+
+func parseIntQuery(raw string, fieldName string, defaultValue int, fields map[string]string) int {
+	raw = strings.TrimSpace(raw)
+
+	if raw == "" {
+		return defaultValue
+	}
+
+	value, err := strconv.Atoi(raw)
+
+	if err != nil {
+		fields[fieldName] = "must be a number"
+		return defaultValue
+	}
+
+	return value
 }
 
 func parseString(w http.ResponseWriter, r *http.Request, str string) (string, bool) {

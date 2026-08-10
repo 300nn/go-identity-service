@@ -4,6 +4,13 @@ import (
 	"time"
 )
 
+type ListUsersRequest struct {
+	Limit  int    `validate:"gte=1,lte=100"`
+	Offset int    `validate:"gte=0"`
+	Email  string `validate:"omitempty,max=250"`
+	Sort   string `validate:"oneof=id_asc id_desc email_asc email_desc created_at_asc created_at_desc"`
+}
+
 type CreateUserRequest struct {
 	Name  string `json:"name" validate:"required,min=2,max=100"`
 	Email string `json:"email" validate:"required,email,max=255"`
