@@ -11,12 +11,14 @@ import (
 )
 
 type Service struct {
-	repo Repository
+	repo      Repository
+	txFactory TxRepositoryFactory
 }
 
-func NewService(repo Repository) *Service {
+func NewService(repo Repository, txFactory TxRepositoryFactory) *Service {
 	return &Service{
-		repo: repo,
+		repo:      repo,
+		txFactory: txFactory,
 	}
 }
 
@@ -30,6 +32,18 @@ type UpdateUserInput struct {
 	Name  string
 	Email string
 	Age   int
+}
+
+type CreateUserWithProfileInput struct {
+	Name  string
+	Email string
+	Age   int
+	Bio   string
+}
+
+type ProfileWithUser struct {
+	User    User
+	Profile Profile
 }
 
 func (s *Service) CreateUser(ctx context.Context, request CreateUserInput) (User, error) {
@@ -179,6 +193,76 @@ func (s *Service) GetUserByEmail(ctx context.Context, email string) (User, error
 	}
 
 	return user, nil
+}
+
+func (s *Service) CreateUserWithProfile(ctx context.Context, input CreateUserWithProfileInput) (ProfileWithUser, error) {
+	if s.txFactory == nil {
+		return ProfileWithUser{}, fmt.Errorf("tx factory is nil")
+	}
+
+	if err := validateUserInput(input.Name, input.Email, input.Age); err != nil {
+		return ProfileWithUser{}, err
+	}
+
+	name := strings.TrimSpace(input.Name)
+	email := strings.TrimSpace(strings.ToLower(input.Email))
+	age := input.Age
+	bio := strings.TrimSpace(input.Bio)
+
+	var res ProfileWithUser
+
+	err := s.txFactory.WithinTx(ctx, func(repo Repository) error {
+		exists, err := repo.ExistsByEmail(ctx, email)
+		if err != nil {
+			return fmt.Errorf("check email exists: %w", err)
+		}
+
+		if exists {
+			return NewEmailAlreadyExistsError()
+		}
+
+		createdUser, err := repo.Create(ctx, User{
+			Name:  name,
+			Email: email,
+			Age:   age,
+		})
+		if err != nil {
+			if errors.Is(err, ErrEmailAlreadyExists) {
+				return NewEmailAlreadyExistsError()
+			}
+
+			return fmt.Errorf("create user: %w", err)
+		}
+
+		createdProfile, err := repo.CreateProfile(ctx, Profile{
+			UserID: createdUser.ID,
+			Bio:    bio,
+		})
+		if err != nil {
+			return fmt.Errorf("create user profile: %w", err)
+		}
+
+		_, err = repo.CreateEvent(ctx, Event{
+			UserID:    createdUser.ID,
+			EventType: EventTypeUserCreated,
+			Payload:   `{"source":"api"}`,
+		})
+		if err != nil {
+			return fmt.Errorf("create user event: %w", err)
+		}
+
+		res = ProfileWithUser{
+			User:    createdUser,
+			Profile: createdProfile,
+		}
+
+		return nil
+	})
+	if err != nil {
+		return ProfileWithUser{}, err
+	}
+
+	return res, nil
 }
 
 func validateUserInput(name string, email string, age int) error {

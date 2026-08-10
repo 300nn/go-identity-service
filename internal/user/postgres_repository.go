@@ -6,16 +6,21 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PostgresRepository struct {
-	pool *pgxpool.Pool
+type DBTX interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
+type PostgresRepository struct {
+	db DBTX
+}
+
+func NewPostgresRepository(db DBTX) *PostgresRepository {
 	return &PostgresRepository{
-		pool: pool,
+		db: db,
 	}
 }
 
@@ -28,7 +33,7 @@ func (r *PostgresRepository) Create(ctx context.Context, user User) (User, error
 
 	var created User
 
-	err := r.pool.QueryRow(ctx, query, user.Name, user.Email, user.Age).Scan(
+	err := r.db.QueryRow(ctx, query, user.Name, user.Email, user.Age).Scan(
 		&created.ID,
 		&created.Name,
 		&created.Email,
@@ -56,7 +61,7 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id int64) (User, erro
 
 	var user User
 
-	err := r.pool.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, id).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
@@ -83,7 +88,7 @@ func (r *PostgresRepository) FindAll(ctx context.Context) ([]User, error) {
 		order by id
 	`
 
-	rows, err := r.pool.Query(ctx, query)
+	rows, err := r.db.Query(ctx, query)
 
 	if err != nil {
 		return nil, fmt.Errorf("select all users: %w", err)
@@ -130,7 +135,7 @@ func (r *PostgresRepository) Update(ctx context.Context, user User) (User, error
 
 	var updated User
 
-	err := r.pool.QueryRow(ctx, query, user.Name, user.Email, user.Age, user.ID).Scan(
+	err := r.db.QueryRow(ctx, query, user.Name, user.Email, user.Age, user.ID).Scan(
 		&updated.ID,
 		&updated.Name,
 		&updated.Email,
@@ -163,7 +168,7 @@ func (r *PostgresRepository) FindByEmail(ctx context.Context, email string) (Use
 
 	var user User
 
-	err := r.pool.QueryRow(ctx, query, email).Scan(
+	err := r.db.QueryRow(ctx, query, email).Scan(
 		&user.ID,
 		&user.Name,
 		&user.Email,
@@ -186,7 +191,7 @@ func (r *PostgresRepository) Delete(ctx context.Context, id int64) error {
 	const query = `
 		delete from users where id = $1
 	`
-	tag, err := r.pool.Exec(ctx, query, id)
+	tag, err := r.db.Exec(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("delete user: %w", err)
 	}
@@ -209,11 +214,57 @@ func (r *PostgresRepository) ExistsByEmail(ctx context.Context, email string) (b
 
 	var exists bool
 
-	if err := r.pool.QueryRow(ctx, query, email).Scan(&exists); err != nil {
+	if err := r.db.QueryRow(ctx, query, email).Scan(&exists); err != nil {
 		return false, fmt.Errorf("check user exists by email: %w", err)
 	}
 
 	return exists, nil
+}
+
+func (r *PostgresRepository) CreateProfile(ctx context.Context, profile Profile) (Profile, error) {
+	const query = `
+		INSERT INTO user_profiles (user_id, bio)
+		VALUES ($1, $2)
+		RETURNING id, user_id, bio, created_at, updated_at
+	`
+
+	var created Profile
+
+	err := r.db.QueryRow(ctx, query, profile.UserID, profile.Bio).Scan(
+		&created.ID,
+		&created.UserID,
+		&created.Bio,
+		&created.CreatedAt,
+		&created.UpdatedAt,
+	)
+	if err != nil {
+		return Profile{}, fmt.Errorf("insert user profile: %w", err)
+	}
+
+	return created, nil
+}
+
+func (r *PostgresRepository) CreateEvent(ctx context.Context, event Event) (Event, error) {
+	const query = `
+		INSERT INTO user_events (user_id, event_type, payload)
+		VALUES ($1, $2, $3::jsonb)
+		RETURNING id, user_id, event_type, payload::text, created_at
+	`
+
+	var created Event
+
+	err := r.db.QueryRow(ctx, query, event.UserID, event.EventType, event.Payload).Scan(
+		&created.ID,
+		&created.UserID,
+		&created.EventType,
+		&created.Payload,
+		&created.CreatedAt,
+	)
+	if err != nil {
+		return Event{}, fmt.Errorf("insert user event: %w", err)
+	}
+
+	return created, nil
 }
 
 func isUniqueViolation(err error) bool {

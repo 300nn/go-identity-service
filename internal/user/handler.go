@@ -122,6 +122,30 @@ func (h *Handler) GetUsersByEmail(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, ToResponse(user))
 }
 
+func (h *Handler) CreateUserWithProfile(w http.ResponseWriter, r *http.Request) {
+	req, ok := response.DecodeJSON[CreateUserWithProfileRequest](w, r)
+	if !ok {
+		return
+	}
+
+	created, err := h.service.CreateUserWithProfile(r.Context(), CreateUserWithProfileInput{
+		Name:  req.Name,
+		Email: req.Email,
+		Age:   req.Age,
+		Bio:   req.Bio,
+	})
+
+	if err != nil {
+		response.HandleError(w, h.logger, err)
+		return
+	}
+
+	response.JSON(w, http.StatusCreated, UserWithProfileResponse{
+		User:    ToResponse(created.User),
+		Profile: ProfileToResponse(created.Profile),
+	})
+}
+
 func parseString(w http.ResponseWriter, r *http.Request, str string) (string, bool) {
 	res := r.PathValue(str)
 

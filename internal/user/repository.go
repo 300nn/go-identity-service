@@ -1,6 +1,8 @@
 package user
 
-import "context"
+import (
+	"context"
+)
 
 type Repository interface {
 	Create(ctx context.Context, user User) (User, error)
@@ -10,4 +12,7 @@ type Repository interface {
 	Delete(ctx context.Context, id int64) error
 	ExistsByEmail(ctx context.Context, email string) (bool, error)
 	FindByEmail(ctx context.Context, email string) (User, error)
+
+	CreateProfile(ctx context.Context, profile Profile) (Profile, error)
+	CreateEvent(ctx context.Context, event Event) (Event, error)
 }

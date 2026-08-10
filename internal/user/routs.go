@@ -9,4 +9,5 @@ func (h *Handler) RegisterRouts(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /users/{id}", h.UpdateUser)
 	mux.HandleFunc("DELETE /users/{id}", h.DeleteUser)
 	mux.HandleFunc("GET /users/by-email/{email}", h.GetUsersByEmail)
+	mux.HandleFunc("POST /users/with-profile", h.CreateUserWithProfile)
 }

@@ -119,3 +119,10 @@ func (r *MemoryRepository) FindByEmail(ctx context.Context, email string) (User,
 
 	return User{}, ErrUserNotFound
 }
+
+func (r *MemoryRepository) CreateProfile(ctx context.Context, profile Profile) (Profile, error) {
+	return Profile{}, nil
+}
+func (r *MemoryRepository) CreateEvent(ctx context.Context, event Event) (Event, error) {
+	return Event{}, nil
+}

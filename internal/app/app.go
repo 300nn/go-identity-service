@@ -129,7 +129,8 @@ func Run() error {
 
 func initUserModule(mux *http.ServeMux, logger *slog.Logger, pool *pgxpool.Pool) {
 	userRepo := user.NewPostgresRepository(pool)
-	userService := user.NewService(userRepo)
+	txFactory := user.NewPostgresTxRepositoryFactory(pool)
+	userService := user.NewService(userRepo, txFactory)
 	userHandler := user.NewHandler(userService, logger)
 	userHandler.RegisterRouts(mux)
 }
