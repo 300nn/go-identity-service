@@ -2,6 +2,7 @@ package user
 
 import (
 	"CrudTutorialProject/internal/response"
+	"CrudTutorialProject/internal/validation"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -9,20 +10,27 @@ import (
 )
 
 type Handler struct {
-	service *Service
-	logger  *slog.Logger
+	service   *Service
+	logger    *slog.Logger
+	validator *validation.Validator
 }
 
-func NewHandler(service *Service, logger *slog.Logger) *Handler {
+func NewHandler(service *Service, logger *slog.Logger, validator *validation.Validator) *Handler {
 	return &Handler{
-		service: service,
-		logger:  logger,
+		service:   service,
+		logger:    logger,
+		validator: validator,
 	}
 }
 
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	req, ok := response.DecodeJSON[CreateUserRequest](w, r)
 	if !ok {
+		return
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		response.HandleError(w, h.logger, err)
 		return
 	}
 
@@ -79,6 +87,11 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.validator.Struct(req); err != nil {
+		response.HandleError(w, h.logger, err)
+		return
+	}
+
 	updated, err := h.service.UpdateUser(r.Context(), id, UpdateUserInput{
 		Name:  req.Name,
 		Email: req.Email,
@@ -125,6 +138,11 @@ func (h *Handler) GetUsersByEmail(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateUserWithProfile(w http.ResponseWriter, r *http.Request) {
 	req, ok := response.DecodeJSON[CreateUserWithProfileRequest](w, r)
 	if !ok {
+		return
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		response.HandleError(w, h.logger, err)
 		return
 	}
 

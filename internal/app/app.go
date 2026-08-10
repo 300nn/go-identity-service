@@ -8,6 +8,7 @@ import (
 	"CrudTutorialProject/internal/postgres"
 	"CrudTutorialProject/internal/response"
 	"CrudTutorialProject/internal/user"
+	"CrudTutorialProject/internal/validation"
 	"context"
 	"errors"
 	"fmt"
@@ -128,9 +129,11 @@ func Run() error {
 }
 
 func initUserModule(mux *http.ServeMux, logger *slog.Logger, pool *pgxpool.Pool) {
+	validator := validation.New()
+
 	userRepo := user.NewPostgresRepository(pool)
 	txFactory := user.NewPostgresTxRepositoryFactory(pool)
 	userService := user.NewService(userRepo, txFactory)
-	userHandler := user.NewHandler(userService, logger)
+	userHandler := user.NewHandler(userService, logger, validator)
 	userHandler.RegisterRouts(mux)
 }

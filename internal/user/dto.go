@@ -5,15 +5,15 @@ import (
 )
 
 type CreateUserRequest struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Age   int    `json:"age"`
+	Name  string `json:"name" validate:"required,min=2,max=100"`
+	Email string `json:"email" validate:"required,email,max=255"`
+	Age   int    `json:"age" validate:"gte=0,lte=150"`
 }
 
 type UpdateUserRequest struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Age   int    `json:"age"`
+	Name  string `json:"name" validate:"required,min=2,max=100"`
+	Email string `json:"email" validate:"required,email,max=255"`
+	Age   int    `json:"age" validate:"gte=0,lte=150"`
 }
 
 type UserResponse struct {
@@ -26,10 +26,10 @@ type UserResponse struct {
 }
 
 type CreateUserWithProfileRequest struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Age   int    `json:"age"`
-	Bio   string `json:"bio"`
+	Name  string `json:"name" validate:"required,min=2,max=100"`
+	Email string `json:"email" validate:"required,email,max=255"`
+	Age   int    `json:"age" validate:"gte=0,lte=150"`
+	Bio   string `json:"bio" validate:"max=1000"`
 }
 
 type UserWithProfileResponse struct {
