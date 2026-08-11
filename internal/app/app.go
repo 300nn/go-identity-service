@@ -78,7 +78,7 @@ func Run() error {
 	})
 
 	mux.HandleFunc("GET /panic", func(w http.ResponseWriter, r *http.Request) {
-		panic("test panic")
+		panic("user_test panic")
 	})
 
 	handler := middleware.Chain(

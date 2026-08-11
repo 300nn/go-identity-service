@@ -16,11 +16,17 @@ func New() *Validator {
 	v := validator.New(validator.WithRequiredStructEnabled())
 
 	v.RegisterTagNameFunc(func(field reflect.StructField) string {
-		name := strings.SplitN(field.Tag.Get("json"), ",", 2)[0]
-		if name == "-" {
-			return ""
+		for _, tagName := range []string{"json", "query", "yaml"} {
+			name := strings.SplitN(field.Tag.Get(tagName), ",", 2)[0]
+			if name == "-" {
+				return ""
+			}
+			if name != "" {
+				return name
+			}
 		}
-		return name
+
+		return field.Name
 	})
 
 	return &Validator{

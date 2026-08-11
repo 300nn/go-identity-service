@@ -1,4 +1,4 @@
-package user_tests
+package user_test
 
 import (
 	"CrudTutorialProject/internal/user"
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type fakeRepository struct {
+type FakeRepository struct {
 	nextUserID    int64
 	nextProfileID int64
 	nextEventID   int64
@@ -18,8 +18,8 @@ type fakeRepository struct {
 	events   map[int64]user.Event
 }
 
-func newFakeRepository() *fakeRepository {
-	return &fakeRepository{
+func newFakeRepository() *FakeRepository {
+	return &FakeRepository{
 		nextUserID:    1,
 		nextProfileID: 1,
 		nextEventID:   1,
@@ -29,7 +29,7 @@ func newFakeRepository() *fakeRepository {
 	}
 }
 
-func (r *fakeRepository) Create(ctx context.Context, usr user.User) (user.User, error) {
+func (r *FakeRepository) Create(ctx context.Context, usr user.User) (user.User, error) {
 	if exists, _ := r.ExistsByEmail(ctx, usr.Email); exists {
 		return user.User{}, user.ErrEmailAlreadyExists
 	}
@@ -46,7 +46,7 @@ func (r *fakeRepository) Create(ctx context.Context, usr user.User) (user.User, 
 	return usr, nil
 }
 
-func (r *fakeRepository) FindByID(ctx context.Context, id int64) (user.User, error) {
+func (r *FakeRepository) FindByID(ctx context.Context, id int64) (user.User, error) {
 	found, ok := r.users[id]
 	if !ok {
 		return user.User{}, user.ErrUserNotFound
@@ -55,7 +55,7 @@ func (r *fakeRepository) FindByID(ctx context.Context, id int64) (user.User, err
 	return found, nil
 }
 
-func (r *fakeRepository) FindByEmail(ctx context.Context, email string) (user.User, error) {
+func (r *FakeRepository) FindByEmail(ctx context.Context, email string) (user.User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 
 	for _, u := range r.users {
@@ -67,7 +67,7 @@ func (r *fakeRepository) FindByEmail(ctx context.Context, email string) (user.Us
 	return user.User{}, user.ErrUserNotFound
 }
 
-func (r *fakeRepository) FindAll(ctx context.Context) ([]user.User, error) {
+func (r *FakeRepository) FindAll(ctx context.Context) ([]user.User, error) {
 	users := make([]user.User, 0, len(r.users))
 
 	for _, u := range r.users {
@@ -81,7 +81,7 @@ func (r *fakeRepository) FindAll(ctx context.Context) ([]user.User, error) {
 	return users, nil
 }
 
-func (r *fakeRepository) List(ctx context.Context, filter user.ListUsersFilter) (user.ListUsersResult, error) {
+func (r *FakeRepository) List(ctx context.Context, filter user.ListUsersFilter) (user.ListUsersResult, error) {
 	email := strings.ToLower(strings.TrimSpace(filter.Email))
 
 	users := make([]user.User, 0, len(r.users))
@@ -131,7 +131,7 @@ func (r *fakeRepository) List(ctx context.Context, filter user.ListUsersFilter) 
 	}, nil
 }
 
-func (r *fakeRepository) Update(ctx context.Context, usr user.User) (user.User, error) {
+func (r *FakeRepository) Update(ctx context.Context, usr user.User) (user.User, error) {
 	existing, ok := r.users[usr.ID]
 	if !ok {
 		return user.User{}, user.ErrUserNotFound
@@ -151,7 +151,7 @@ func (r *fakeRepository) Update(ctx context.Context, usr user.User) (user.User, 
 	return usr, nil
 }
 
-func (r *fakeRepository) Delete(ctx context.Context, id int64) error {
+func (r *FakeRepository) Delete(ctx context.Context, id int64) error {
 	if _, ok := r.users[id]; !ok {
 		return user.ErrUserNotFound
 	}
@@ -160,7 +160,7 @@ func (r *fakeRepository) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (r *fakeRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+func (r *FakeRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 
 	for _, u := range r.users {
@@ -172,7 +172,7 @@ func (r *fakeRepository) ExistsByEmail(ctx context.Context, email string) (bool,
 	return false, nil
 }
 
-func (r *fakeRepository) CreateProfile(ctx context.Context, profile user.Profile) (user.Profile, error) {
+func (r *FakeRepository) CreateProfile(ctx context.Context, profile user.Profile) (user.Profile, error) {
 	now := time.Now().UTC()
 
 	profile.ID = r.nextProfileID
@@ -185,7 +185,7 @@ func (r *fakeRepository) CreateProfile(ctx context.Context, profile user.Profile
 	return profile, nil
 }
 
-func (r *fakeRepository) CreateEvent(ctx context.Context, event user.Event) (user.Event, error) {
+func (r *FakeRepository) CreateEvent(ctx context.Context, event user.Event) (user.Event, error) {
 	event.ID = r.nextEventID
 	event.CreatedAt = time.Now().UTC()
 

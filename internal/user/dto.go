@@ -5,10 +5,10 @@ import (
 )
 
 type ListUsersRequest struct {
-	Limit  int    `validate:"gte=1,lte=100"`
-	Offset int    `validate:"gte=0"`
-	Email  string `validate:"omitempty,max=250"`
-	Sort   string `validate:"oneof=id_asc id_desc email_asc email_desc created_at_asc created_at_desc"`
+	Limit  int    `query:"limit" validate:"gte=1,lte=100"`
+	Offset int    `query:"offset" validate:"gte=0"`
+	Email  string `query:"email" validate:"omitempty,max=250"`
+	Sort   string `query:"sort" validate:"oneof=id_asc id_desc email_asc email_desc created_at_asc created_at_desc"`
 }
 
 type CreateUserRequest struct {

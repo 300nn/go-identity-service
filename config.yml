@@ -1,6 +1,6 @@
 app:
   name: "go-crud-api"
-  version: "test"
+  version: "user_test"
   environment: "local"
 
 http:
