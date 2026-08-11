@@ -3,7 +3,6 @@ package app
 import (
 	"CrudTutorialProject/internal/config"
 	"CrudTutorialProject/internal/httpserver"
-	"CrudTutorialProject/internal/logger"
 	"CrudTutorialProject/internal/middleware"
 	"CrudTutorialProject/internal/postgres"
 	"CrudTutorialProject/internal/response"
@@ -15,29 +14,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 )
 
-func Run() error {
-	cfg, err := config.Load("config.yml")
-
-	if err != nil {
-		return err
-	}
-
-	log := logger.New(cfg.Log.Level)
+func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	mux := http.NewServeMux()
-
-	ctx := context.Background()
 
 	dbPool, err := postgres.NewPool(ctx, &cfg.Database)
 
 	if err != nil {
-		return fmt.Errorf("connect postgres: %w", err)
+		return err
 	}
 
 	defer dbPool.Close()
@@ -98,7 +85,7 @@ func Run() error {
 	go func() {
 		log.Info("starting server", "addr", server.Addr)
 
-		if err := server.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- fmt.Errorf("listen and serve: %w", err)
 			return
 		}
@@ -106,26 +93,22 @@ func Run() error {
 		errCh <- nil
 	}()
 
-	shutDownCh := make(chan os.Signal, 1)
-	signal.Notify(shutDownCh, os.Interrupt, syscall.SIGTERM)
-
 	select {
 	case err := <-errCh:
 		return err
-	case sig := <-shutDownCh:
-		log.Info("shutdown signal received", "signal", sig.String())
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		if err := server.Shutdown(ctx); err != nil {
-			return fmt.Errorf("shutdown server: %w", err)
-		}
-
-		log.Info("server stopped gracefully")
-		return nil
+	case <-ctx.Done():
+		log.Info("shutdown signal received")
 	}
 
+	shutDownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutDownCtx); err != nil {
+		return fmt.Errorf("shuthdown server: %w", err)
+	}
+
+	log.Info("server stopped gracefully")
+	return nil
 }
 
 func initUserModule(mux *http.ServeMux, logger *slog.Logger, pool *pgxpool.Pool) {

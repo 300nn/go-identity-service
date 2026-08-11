@@ -6,6 +6,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/ilyakaznacheev/cleanenv"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -57,11 +58,27 @@ type AppConfig struct {
 }
 
 func (d *DatabaseConfig) DatabaseUrl() string {
-	return "postgres://" + d.User + ":" + d.Password + "@" + d.Host + ":" + strconv.Itoa(d.Port) + "/" + d.Name
+	u := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(d.User, d.Password),
+		Host:   net.JoinHostPort(d.Host, strconv.Itoa(d.Port)),
+		Path:   d.Name,
+	}
+	return u.String()
 }
 
 func (d *DatabaseConfig) DatabaseUrlWithoutSSL() string {
-	return "postgres://" + d.User + ":" + d.Password + "@" + d.Host + ":" + strconv.Itoa(d.Port) + "/" + d.Name + "?sslmode=disable"
+	u := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(d.User, d.Password),
+		Host:   net.JoinHostPort(d.Host, strconv.Itoa(d.Port)),
+		Path:   d.Name,
+	}
+	q := u.Query()
+	q.Set("sslmode", "disable")
+	u.RawQuery = q.Encode()
+
+	return u.String()
 }
 
 func (h *HTTPConfig) Address() string {

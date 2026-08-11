@@ -12,10 +12,10 @@ http:
 
 database:
   host: "localhost"
-  port: 15432
+  port: 5432
   name: "go_crud"
-  user: "go_crud"
-  password: "go_crud"
+  user: "postgres"
+  password: "root"
   pool:
     min_cons: 1
     max_cons: 10

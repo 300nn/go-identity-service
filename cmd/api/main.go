@@ -2,16 +2,38 @@ package main
 
 import (
 	"CrudTutorialProject/internal/app"
-	"fmt"
+	"CrudTutorialProject/internal/config"
+	"CrudTutorialProject/internal/logger"
+	"context"
+	"errors"
+	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-	if err := app.Run(); err != nil {
-		_, err := fmt.Fprintf(os.Stderr, "application faild %v\n", err)
-		if err != nil {
-			return
-		}
+	cfg, err := config.Load("config.yml")
+	if err != nil {
+		slog.Error("load config", slog.Any("error", err))
 		os.Exit(1)
 	}
+
+	log := logger.New(cfg.Log.Level)
+
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+	defer stop()
+
+	if err := app.Run(ctx, cfg, log); err != nil {
+		if !errors.Is(err, context.Canceled) {
+			log.Error("application stopped with error", slog.Any("error", err))
+			os.Exit(1)
+		}
+	}
+
+	log.Info("application stopped")
 }
