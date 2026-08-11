@@ -1,0 +1,14 @@
+.idea/
+*.iml
+.env
+*.exe
+/bin/
+
+/dist/
+*.exe~
+*.dll
+*.so
+*.dylib
+
+go.work
+go.work.sum
