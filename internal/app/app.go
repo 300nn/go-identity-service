@@ -14,12 +14,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
 
 func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	mux := http.NewServeMux()
+
+	var shuttingDown atomic.Bool
 
 	dbPool, err := postgres.NewPool(ctx, &cfg.Database)
 
@@ -31,17 +34,11 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	initUserModule(mux, log, dbPool)
 
-	mux.HandleFunc("GET /ready", func(w http.ResponseWriter, r *http.Request) {
-		response.JSON(w, http.StatusOK, map[string]string{
-			"status": "ready",
-		})
-	})
+	healthHandlers := NewHealthHandlers(dbPool, log, &shuttingDown)
 
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		response.JSON(w, http.StatusOK, map[string]string{
-			"status": "ok",
-		})
-	})
+	mux.HandleFunc("GET /ready", healthHandlers.Ready)
+
+	mux.HandleFunc("GET /health", healthHandlers.Health)
 
 	mux.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, map[string]string{
@@ -103,6 +100,7 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	shutDownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	shuttingDown.Store(true)
 	if err := server.Shutdown(shutDownCtx); err != nil {
 		return fmt.Errorf("shuthdown server: %w", err)
 	}

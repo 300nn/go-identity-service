@@ -11,7 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U go_crud -d go_crud"]
+      test: [ "CMD-SHELL", "pg_isready -U go_crud -d go_crud" ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -22,7 +22,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: go-crud-migrate
-    entrypoint: ["/app/migrate"]
+    entrypoint: [ "/app/migrate" ]
     environment:
       APP_ENVIRONMENT: local
       APP_NAME: go-crud-api
@@ -70,6 +70,12 @@ services:
       LOG_LEVEL: info
     ports:
       - "8080:8080"
+    healthcheck:
+      test: [ "CMD", "/app/healthcheck" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     depends_on:
       postgres:
         condition: service_healthy
