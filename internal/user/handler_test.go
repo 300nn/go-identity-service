@@ -32,7 +32,10 @@ func newTestUserApp(t *testing.T) testUserApp {
 	handler := user.NewHandler(service, log, validate)
 
 	mux := http.NewServeMux()
-	handler.RegisterRouts(mux)
+
+	handler.RegisterRouts(mux, func(next http.Handler) http.Handler {
+		return next
+	})
 
 	return testUserApp{
 		handler: mux,

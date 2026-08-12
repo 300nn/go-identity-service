@@ -122,9 +122,10 @@ func TestPostgresRepository_FindByID(t *testing.T) {
 	repo := user.NewPostgresRepository(pool)
 
 	created, err := repo.Create(ctx, user.User{
-		Name:  "Alex",
-		Email: "alex@example.com",
-		Age:   25,
+		Name:         "Alex",
+		Email:        "alex@example.com",
+		Age:          25,
+		PasswordHash: "password-hash",
 	})
 	if err != nil {
 		t.Fatalf("Create returned error: %v", err)
@@ -167,18 +168,20 @@ func TestPostgresRepository_Create_DuplicateEmail(t *testing.T) {
 	repo := user.NewPostgresRepository(pool)
 
 	_, err := repo.Create(ctx, user.User{
-		Name:  "Alex",
-		Email: "alex@example.com",
-		Age:   25,
+		Name:         "Alex",
+		Email:        "alex@example.com",
+		Age:          25,
+		PasswordHash: "password-hash",
 	})
 	if err != nil {
 		t.Fatalf("first Create returned error: %v", err)
 	}
 
 	_, err = repo.Create(ctx, user.User{
-		Name:  "Another Alex",
-		Email: "alex@example.com",
-		Age:   30,
+		Name:         "Another Alex",
+		Email:        "alex@example.com",
+		Age:          30,
+		PasswordHash: "password-hash",
 	})
 	if err == nil {
 		t.Fatal("expected duplicate email error, got nil")
@@ -196,27 +199,30 @@ func TestPostgresRepository_List(t *testing.T) {
 	repo := user.NewPostgresRepository(pool)
 
 	_, err := repo.Create(ctx, user.User{
-		Name:  "Alex",
-		Email: "alex@example.com",
-		Age:   25,
+		Name:         "Alex",
+		Email:        "alex@example.com",
+		Age:          25,
+		PasswordHash: "password-hash",
 	})
 	if err != nil {
 		t.Fatalf("create Alex: %v", err)
 	}
 
 	_, err = repo.Create(ctx, user.User{
-		Name:  "Bob",
-		Email: "bob@example.com",
-		Age:   30,
+		Name:         "Bob",
+		Email:        "bob@example.com",
+		Age:          30,
+		PasswordHash: "password-hash",
 	})
 	if err != nil {
 		t.Fatalf("create Bob: %v", err)
 	}
 
 	_, err = repo.Create(ctx, user.User{
-		Name:  "Alice",
-		Email: "alice@test.com",
-		Age:   22,
+		Name:         "Alice",
+		Email:        "alice@test.com",
+		Age:          22,
+		PasswordHash: "password-hash",
 	})
 	if err != nil {
 		t.Fatalf("create Alice: %v", err)

@@ -27,14 +27,14 @@ func NewPostgresRepository(db DBTX) *PostgresRepository {
 
 func (r *PostgresRepository) Create(ctx context.Context, user User) (User, error) {
 	const query = `
-		insert into users (name, email, age)
-		values ($1, $2, $3)
+		insert into users (name, email, age, password_hash)
+		values ($1, $2, $3, $4)
 		returning id, name, email, age, created_at, updated_at
 	`
 
 	var created User
 
-	err := r.db.QueryRow(ctx, query, user.Name, user.Email, user.Age).Scan(
+	err := r.db.QueryRow(ctx, query, user.Name, user.Email, user.Age, user.PasswordHash).Scan(
 		&created.ID,
 		&created.Name,
 		&created.Email,
@@ -216,7 +216,7 @@ func (r *PostgresRepository) Update(ctx context.Context, user User) (User, error
 
 func (r *PostgresRepository) FindByEmail(ctx context.Context, email string) (User, error) {
 	const query = `
-		select id, name, email, age, created_at, updated_at 
+		select id, name, email, age, password_hash, created_at, updated_at 
 		from users
 		where email = $1
 	`
@@ -228,6 +228,7 @@ func (r *PostgresRepository) FindByEmail(ctx context.Context, email string) (Use
 		&user.Name,
 		&user.Email,
 		&user.Age,
+		&user.PasswordHash,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)

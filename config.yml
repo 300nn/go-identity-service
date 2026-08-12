@@ -23,5 +23,9 @@ database:
     max_con_idle_time: 30m
     health_check_period: 1m
 
+auth:
+  jwt_secret: "local-dev-secret-change-me-please-32"
+  access_token_ttl: 15m
+
 log:
   level: "info"

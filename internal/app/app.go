@@ -1,6 +1,7 @@
 package app
 
 import (
+	"CrudTutorialProject/internal/auth"
 	"CrudTutorialProject/internal/config"
 	"CrudTutorialProject/internal/httpserver"
 	"CrudTutorialProject/internal/middleware"
@@ -11,18 +12,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"net/http"
 	"sync/atomic"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
+	var shuttingDown atomic.Bool
 
 	mux := http.NewServeMux()
-
-	var shuttingDown atomic.Bool
 
 	dbPool, err := postgres.NewPool(ctx, &cfg.Database)
 
@@ -32,38 +33,15 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	defer dbPool.Close()
 
-	initUserModule(mux, log, dbPool)
+	userRepo := user.NewPostgresRepository(dbPool)
 
-	healthHandlers := NewHealthHandlers(dbPool, log, &shuttingDown)
+	validator := validation.New()
 
-	mux.HandleFunc("GET /ready", healthHandlers.Ready)
+	initHealthModule(mux, dbPool, log, &shuttingDown, cfg)
 
-	mux.HandleFunc("GET /health", healthHandlers.Health)
+	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator)
 
-	mux.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
-		response.JSON(w, http.StatusOK, map[string]string{
-			"message": "pong",
-		})
-	})
-
-	mux.HandleFunc("GET /info", func(w http.ResponseWriter, r *http.Request) {
-		response.JSON(w, http.StatusOK, map[string]string{
-			"name":        cfg.App.Name,
-			"version":     cfg.App.Version,
-			"environment": cfg.App.Environment,
-		})
-	})
-
-	mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
-		response.JSON(w, http.StatusOK, map[string]string{
-			"name":    cfg.App.Name,
-			"version": cfg.App.Version,
-		})
-	})
-
-	mux.HandleFunc("GET /panic", func(w http.ResponseWriter, r *http.Request) {
-		panic("user_test panic")
-	})
+	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware)
 
 	handler := middleware.Chain(
 		mux,
@@ -97,24 +75,79 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		log.Info("shutdown signal received")
 	}
 
+	shuttingDown.Store(true)
+
 	shutDownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	shuttingDown.Store(true)
 	if err := server.Shutdown(shutDownCtx); err != nil {
-		return fmt.Errorf("shuthdown server: %w", err)
+		return fmt.Errorf("shutdown server: %w", err)
 	}
 
 	log.Info("server stopped gracefully")
 	return nil
 }
 
-func initUserModule(mux *http.ServeMux, logger *slog.Logger, pool *pgxpool.Pool) {
-	validator := validation.New()
+func initHealthModule(mux *http.ServeMux, dbPool *pgxpool.Pool, log *slog.Logger, shuttingDown *atomic.Bool, cfg *config.Config) {
+	healthHandlers := NewHealthHandlers(dbPool, log, shuttingDown)
 
-	userRepo := user.NewPostgresRepository(pool)
+	mux.HandleFunc("GET /ready", healthHandlers.Ready)
+
+	mux.HandleFunc("GET /health", healthHandlers.Health)
+
+	mux.HandleFunc("GET /ping", func(w http.ResponseWriter, r *http.Request) {
+		response.JSON(w, http.StatusOK, map[string]string{
+			"message": "pong",
+		})
+	})
+
+	mux.HandleFunc("GET /info", func(w http.ResponseWriter, r *http.Request) {
+		response.JSON(w, http.StatusOK, map[string]string{
+			"name":        cfg.App.Name,
+			"version":     cfg.App.Version,
+			"environment": cfg.App.Environment,
+		})
+	})
+
+	mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
+		response.JSON(w, http.StatusOK, map[string]string{
+			"name":    cfg.App.Name,
+			"version": cfg.App.Version,
+		})
+	})
+
+	if cfg.App.Environment == "local" {
+		mux.HandleFunc("GET /panic", func(w http.ResponseWriter, r *http.Request) {
+			panic("user_test panic")
+		})
+	}
+
+}
+
+func initUserModule(mux *http.ServeMux, logger *slog.Logger, pool *pgxpool.Pool, userRepo user.Repository, validator *validation.Validator, ware *auth.MiddleWare) {
 	txFactory := user.NewPostgresTxRepositoryFactory(pool)
 	userService := user.NewService(userRepo, txFactory)
 	userHandler := user.NewHandler(userService, logger, validator)
-	userHandler.RegisterRouts(mux)
+	userHandler.RegisterRouts(mux, ware.RequireAuth)
+}
+
+func initAuthModule(mux *http.ServeMux, cfg *config.Config, log *slog.Logger, userRepo user.Repository, validator *validation.Validator) *auth.MiddleWare {
+	tokenManager := auth.NewTokenManager(
+		cfg.Auth.JWTSecret,
+		cfg.Auth.AccessTokenTTL,
+		cfg.App.Name,
+	)
+
+	authService := auth.NewService(
+		userRepo,
+		auth.NewPasswordHasher(),
+		tokenManager,
+	)
+
+	authHandler := auth.NewHandler(authService, log, validator)
+	authMiddleware := auth.NewMiddleWare(tokenManager)
+
+	authHandler.RegisterRoutes(mux, authMiddleware)
+
+	return authMiddleware
 }

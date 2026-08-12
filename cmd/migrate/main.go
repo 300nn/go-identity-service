@@ -14,13 +14,13 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	cfg, err := config.Load("config.yml")
+	cfg, err := config.LoadDatabase("config.yml")
 	if err != nil {
 		logger.Error("load config", slog.Any("error", err))
 		os.Exit(1)
 	}
 
-	db, err := sql.Open("pgx", cfg.Database.DatabaseUrlWithoutSSL())
+	db, err := sql.Open("pgx", cfg.DatabaseUrlWithoutSSL())
 	if err != nil {
 		logger.Error("open database", slog.Any("error", err))
 		os.Exit(1)

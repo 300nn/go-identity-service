@@ -4,8 +4,9 @@ import (
 	"CrudTutorialProject/internal/user"
 	"context"
 	"errors"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func countRows(t *testing.T, ctx context.Context, pool *pgxpool.Pool, query string, args ...any) int64 {
@@ -30,9 +31,10 @@ func TestPostgresTxRepositoryFactory_WithinTx_Commits(t *testing.T) {
 
 	err := txFactory.WithinTx(ctx, func(repo user.Repository) error {
 		created, err := repo.Create(ctx, user.User{
-			Name:  "Alex",
-			Email: "alex.tx.commit@example.com",
-			Age:   25,
+			Name:         "Alex",
+			Email:        "alex.tx.commit@example.com",
+			Age:          25,
+			PasswordHash: "password-hash",
 		})
 		if err != nil {
 			return err
@@ -67,9 +69,10 @@ func TestPostgresTxRepositoryFactory_WithinTx_RollsBack(t *testing.T) {
 
 	err := txFactory.WithinTx(ctx, func(repo user.Repository) error {
 		_, err := repo.Create(ctx, user.User{
-			Name:  "Rollback",
-			Email: "rollback@example.com",
-			Age:   25,
+			Name:         "Rollback",
+			Email:        "rollback@example.com",
+			Age:          25,
+			PasswordHash: "password-hash",
 		})
 		if err != nil {
 			return err

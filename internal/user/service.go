@@ -77,9 +77,10 @@ func (s *Service) CreateUser(ctx context.Context, request CreateUserInput) (User
 	}
 
 	created, err := s.repo.Create(ctx, User{
-		Name:  name,
-		Email: email,
-		Age:   age,
+		Name:         name,
+		Email:        email,
+		Age:          age,
+		PasswordHash: "old_version_of_password",
 	})
 
 	if err != nil {
@@ -240,9 +241,10 @@ func (s *Service) CreateUserWithProfile(ctx context.Context, input CreateUserWit
 		}
 
 		createdUser, err := repo.Create(ctx, User{
-			Name:  name,
-			Email: email,
-			Age:   age,
+			Name:         name,
+			Email:        email,
+			Age:          age,
+			PasswordHash: "old_version_of_password",
 		})
 		if err != nil {
 			if errors.Is(err, ErrEmailAlreadyExists) {

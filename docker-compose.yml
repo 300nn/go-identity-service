@@ -67,6 +67,9 @@ services:
       DATABASE_POOL_MAX_CON_IDLE_TIME: 20m
       DATABASE_POOL_HEALTH_CHECK_PERIOD: 1m
 
+      AUTH_JWT_SECRET: local-dev-secret-change-me-please-32
+      AUTH_ACCESS_TOKEN_TTL: 15m
+
       LOG_LEVEL: info
     ports:
       - "8080:8080"

@@ -3,13 +3,14 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/go-playground/validator/v10"
-	"github.com/ilyakaznacheev/cleanenv"
 	"net"
 	"net/url"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
 var configValidator = validator.New(
@@ -20,6 +21,7 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database" env-prefix:"DATABASE_"`
 	Log      LogConfig      `yaml:"log" env-prefix:"LOG_"`
 	App      AppConfig      `yaml:"app" env-prefix:"APP_"`
+	Auth     AuthConfig     `yaml:"auth" env-prefix:"AUTH_"`
 }
 
 type HTTPConfig struct {
@@ -55,6 +57,11 @@ type AppConfig struct {
 	Name        string `yaml:"name" env:"NAME" env-default:"go-crud-api" validate:"required"`
 	Version     string `yaml:"version" env:"VERSION" env-default:"dev" validate:"required"`
 	Environment string `yaml:"environment" env:"ENVIRONMENT" env-default:"local" validate:"oneof=local development staging production"`
+}
+
+type AuthConfig struct {
+	JWTSecret      string        `yaml:"jwt_secret" env:"JWT_SECRET" env-default:"local-dev-secret-change-me-please-32" validate:"required,min=32"`
+	AccessTokenTTL time.Duration `yaml:"access_token_ttl" env:"ACCESS_TOKEN_TTL" env-default:"15m" validate:"gt=0"`
 }
 
 func (d *DatabaseConfig) DatabaseUrl() string {
@@ -131,12 +138,48 @@ func readConfig(filename string, cfg *Config) error {
 	return nil
 }
 
+func LoadDatabase(filename string) (*DatabaseConfig, error) {
+	var cfg struct {
+		Database DatabaseConfig `yaml:"database" env-prefix:"DATABASE_"`
+	}
+
+	_, err := os.Stat(filename)
+
+	switch {
+	// Если файл есть, то пытаемся его считать, при ошибке, пробрасываем ее
+	case err == nil:
+		if err := cleanenv.ReadConfig(filename, &cfg); err != nil {
+			return nil, fmt.Errorf("read config %q: %w", filename, err)
+		}
+		// Выставляем дефолтные значения, если файла нет
+	case errors.Is(err, os.ErrNotExist):
+		if err := cleanenv.ReadEnv(&cfg); err != nil {
+			return nil, fmt.Errorf("read environment config: %w", err)
+		}
+
+		// Пробрасываем неизвестные ошибки
+	default:
+		return nil, fmt.Errorf("check config %q: %w", filename, err)
+	}
+
+	if err := configValidator.Struct(&cfg); err != nil {
+		return nil, fmt.Errorf("validate config fields: %w", err)
+	}
+
+	return &cfg.Database, nil
+}
+
 func (c Config) Validate() error {
 	if c.App.Environment == "production" &&
 		c.Database.Password == "" {
 		return errors.New(
 			"database password is required in production",
 		)
+	}
+
+	if c.App.Environment == "production" &&
+		c.Auth.JWTSecret == "local-dev-secret-change-me-please-32" {
+		return errors.New("auth jwt secret must be changed in production")
 	}
 
 	return nil

@@ -3,11 +3,12 @@ package app
 import (
 	"CrudTutorialProject/internal/response"
 	"context"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"net/http"
 	"sync/atomic"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type HealthHandlers struct {
