@@ -34,13 +34,13 @@ func (h *HealthHandlers) Health(w http.ResponseWriter, r *http.Request) {
 
 func (h *HealthHandlers) Ready(w http.ResponseWriter, r *http.Request) {
 	if h.shuttingDown.Load() {
-		response.JSON(w, http.StatusOK, map[string]string{
+		response.JSON(w, http.StatusServiceUnavailable, map[string]string{
 			"status": "shutting_down",
 		})
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 500*time.Microsecond)
+	ctx, cancel := context.WithTimeout(r.Context(), 500*time.Millisecond)
 	defer cancel()
 
 	if err := h.db.Ping(ctx); err != nil {

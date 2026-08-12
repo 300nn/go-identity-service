@@ -37,4 +37,6 @@ USER nonroot:nonroot
 
 EXPOSE 8080
 
+STOPSIGNAL SIGTERM
+
 ENTRYPOINT ["/app/api"]

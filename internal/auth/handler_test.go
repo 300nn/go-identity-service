@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type testAuthHTTPApp struct {
@@ -24,7 +26,7 @@ func newTestAuthHTTPApp(t *testing.T) *testAuthHTTPApp {
 	t.Helper()
 
 	repo := newFakeUserRepository()
-	hasher := auth.NewPasswordHasher()
+	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
 	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
 
 	service := auth.NewService(repo, hasher, tokens)
