@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -11,10 +12,14 @@ type PasswordHasher struct {
 	cost int
 }
 
-func NewPasswordHasher() *PasswordHasher {
+func NewPasswordHasherWithCost(cost int) *PasswordHasher {
 	return &PasswordHasher{
-		cost: bcryptCost,
+		cost: cost,
 	}
+}
+
+func NewPasswordHasher() *PasswordHasher {
+	return NewPasswordHasherWithCost(bcryptCost)
 }
 
 func (h *PasswordHasher) Hash(password string) (string, error) {

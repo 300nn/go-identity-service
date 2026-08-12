@@ -1,0 +1,106 @@
+package auth_test
+
+import (
+	"CrudTutorialProject/internal/auth"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+)
+
+func TestMiddleware_RequireAuth_MissingHeader(t *testing.T) {
+	middleware := auth.NewMiddleWare(
+		auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api"),
+	)
+
+	nextCalled := false
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	rr := httptest.NewRecorder()
+
+	middleware.RequireAuth(next).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+	}
+
+	if nextCalled {
+		t.Fatal("next handler must not be called")
+	}
+}
+
+func TestMiddleware_RequireAuth_ValidToken(t *testing.T) {
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	middleware := auth.NewMiddleWare(tokenManager)
+
+	token, err := tokenManager.Generate(123, "alex@example.com")
+
+	if err != nil {
+		t.Fatalf("error generating token: %v", err)
+	}
+
+	nextCalled := false
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+
+		principal, ok := auth.PrincipalFromContext(r.Context())
+
+		if !ok {
+			t.Fatal("principal not found in context")
+		}
+
+		if principal.UserID != 123 {
+			t.Fatalf("expected principal user id %d, got %d", 123, principal.UserID)
+		}
+
+		if principal.Email != "alex@example.com" {
+			t.Fatalf("expected principal email %s, got %s", "alex@example.com", principal.Email)
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+
+	middleware.RequireAuth(next).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rr.Code)
+	}
+	if !nextCalled {
+		t.Fatal("expected next handler to be called")
+	}
+}
+
+func TestMiddleware_RequireAuth_InvalidToken(t *testing.T) {
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	middleware := auth.NewMiddleWare(tokenManager)
+
+	nextCalled := false
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer invalid-token")
+
+	rr := httptest.NewRecorder()
+
+	middleware.RequireAuth(next).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+	}
+
+	if nextCalled {
+		t.Fatal("next handler must not be called")
+	}
+}

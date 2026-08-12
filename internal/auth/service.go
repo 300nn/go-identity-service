@@ -31,7 +31,7 @@ func NewService(userRepo UserStore, hasher *PasswordHasher, tokens *TokenManager
 
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthResponse, error) {
 	name := strings.TrimSpace(req.Name)
-	email := strings.TrimSpace(req.Email)
+	email := strings.TrimSpace(strings.ToLower(req.Email))
 
 	exist, err := s.userRepo.ExistsByEmail(ctx, email)
 	if err != nil {
@@ -74,7 +74,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 }
 
 func (s *Service) Login(ctx context.Context, req LoginRequest) (AuthResponse, error) {
-	email := strings.TrimSpace(req.Email)
+	email := strings.TrimSpace(strings.ToLower(req.Email))
 
 	found, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
