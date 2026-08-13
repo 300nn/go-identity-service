@@ -172,3 +172,174 @@ func TestMiddleware_RequireRole_ForbidsUser(t *testing.T) {
 		t.Fatal("next handler must not be called")
 	}
 }
+
+func TestMiddleware_RequireSelfOrRole_AllowsAdmin(t *testing.T) {
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	middleware := auth.NewMiddleWare(tokenManager)
+
+	token, err := tokenManager.Generate(1, "admin@example.com", string(user.RoleAdmin))
+	if err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+
+	nextCalled := false
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/users/999", nil)
+	req.SetPathValue("id", "999")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+
+	middleware.RequireSelfOrRole(
+		auth.PathInt64Param("id"),
+		user.RoleAdmin,
+	)(next).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rr.Code)
+	}
+
+	if !nextCalled {
+		t.Fatal("expected next handler to be called")
+	}
+}
+
+func TestMiddleware_RequireSelfOrRole_AllowsSelf(t *testing.T) {
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	middleware := auth.NewMiddleWare(tokenManager)
+
+	token, err := tokenManager.Generate(123, "user@example.com", string(user.RoleUser))
+	if err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+
+	nextCalled := false
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
+	req.SetPathValue("id", "123")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+
+	middleware.RequireSelfOrRole(
+		auth.PathInt64Param("id"),
+		user.RoleAdmin,
+	)(next).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rr.Code)
+	}
+
+	if !nextCalled {
+		t.Fatal("expected next handler to be called")
+	}
+}
+
+func TestMiddleware_RequireSelfOrRole_ForbidsOtherUser(t *testing.T) {
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	middleware := auth.NewMiddleWare(tokenManager)
+
+	token, err := tokenManager.Generate(123, "user@example.com", string(user.RoleUser))
+	if err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+
+	nextCalled := false
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/users/999", nil)
+	req.SetPathValue("id", "999")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+
+	middleware.RequireSelfOrRole(
+		auth.PathInt64Param("id"),
+		user.RoleAdmin,
+	)(next).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rr.Code)
+	}
+
+	if nextCalled {
+		t.Fatal("next handler must not be called")
+	}
+}
+
+func TestMiddleware_RequireSelfOrRole_MissingToken(t *testing.T) {
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	middleware := auth.NewMiddleWare(tokenManager)
+
+	nextCalled := false
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/users/123", nil)
+	req.SetPathValue("id", "123")
+
+	rr := httptest.NewRecorder()
+
+	middleware.RequireSelfOrRole(
+		auth.PathInt64Param("id"),
+		user.RoleAdmin,
+	)(next).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+	}
+
+	if nextCalled {
+		t.Fatal("next handler must not be called")
+	}
+}
+
+func TestMiddleware_RequireSelfOrRole_InvalidPathID(t *testing.T) {
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	middleware := auth.NewMiddleWare(tokenManager)
+
+	token, err := tokenManager.Generate(123, "user@example.com", string(user.RoleUser))
+	if err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+
+	nextCalled := false
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/users/abc", nil)
+	req.SetPathValue("id", "abc")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	rr := httptest.NewRecorder()
+
+	middleware.RequireSelfOrRole(
+		auth.PathInt64Param("id"),
+		user.RoleAdmin,
+	)(next).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+
+	if nextCalled {
+		t.Fatal("next handler must not be called")
+	}
+}
