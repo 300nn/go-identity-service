@@ -128,7 +128,7 @@ func initUserModule(mux *http.ServeMux, logger *slog.Logger, pool *pgxpool.Pool,
 	txFactory := user.NewPostgresTxRepositoryFactory(pool)
 	userService := user.NewService(userRepo, txFactory)
 	userHandler := user.NewHandler(userService, logger, validator)
-	userHandler.RegisterRouts(mux, ware.RequireAuth)
+	userHandler.RegisterRouts(mux, ware.RequireAuth, ware.RequireRole(user.RoleAdmin))
 }
 
 func initAuthModule(mux *http.ServeMux, cfg *config.Config, log *slog.Logger, userRepo user.Repository, validator *validation.Validator) *auth.MiddleWare {

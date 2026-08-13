@@ -27,18 +27,23 @@ func NewPostgresRepository(db DBTX) *PostgresRepository {
 
 func (r *PostgresRepository) Create(ctx context.Context, user User) (User, error) {
 	const query = `
-		insert into users (name, email, age, password_hash)
-		values ($1, $2, $3, $4)
-		returning id, name, email, age, created_at, updated_at
+		insert into users (name, email, age, password_hash, role)
+		values ($1, $2, $3, $4, $5)
+		returning id, name, email, age, role, created_at, updated_at
 	`
 
 	var created User
 
-	err := r.db.QueryRow(ctx, query, user.Name, user.Email, user.Age, user.PasswordHash).Scan(
+	if user.Role == "" {
+		user.Role = RoleUser
+	}
+
+	err := r.db.QueryRow(ctx, query, user.Name, user.Email, user.Age, user.PasswordHash, user.Role).Scan(
 		&created.ID,
 		&created.Name,
 		&created.Email,
 		&created.Age,
+		&created.Role,
 		&created.CreatedAt,
 		&created.UpdatedAt,
 	)
@@ -55,7 +60,7 @@ func (r *PostgresRepository) Create(ctx context.Context, user User) (User, error
 }
 func (r *PostgresRepository) FindByID(ctx context.Context, id int64) (User, error) {
 	const query = `
-		select id, name, email, age, created_at, updated_at 
+		select id, name, email, age, role, created_at, updated_at 
 		from users
 		where id = $1
 	`
@@ -67,6 +72,7 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id int64) (User, erro
 		&user.Name,
 		&user.Email,
 		&user.Age,
+		&user.Role,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -84,7 +90,7 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id int64) (User, erro
 
 func (r *PostgresRepository) FindAll(ctx context.Context) ([]User, error) {
 	const query = `
-		select id, name, email, age, created_at, updated_at 
+		select id, name, email, age, role, created_at, updated_at 
 		from users
 		order by id
 	`
@@ -107,6 +113,7 @@ func (r *PostgresRepository) FindAll(ctx context.Context) ([]User, error) {
 			&user.Name,
 			&user.Email,
 			&user.Age,
+			&user.Role,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 		)
@@ -141,7 +148,7 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListUsersFilter) (
 	orderBy := usersOrderBy(filter.Sort)
 
 	query := fmt.Sprintf(`
-		select id, name, email, age, created_at, updated_at 
+		select id, name, email, age, role, created_at, updated_at 
 		from users
 		where ($1 = '' or email ILIKE '%%' || $1 || '%%')
 		order by %s
@@ -163,6 +170,7 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListUsersFilter) (
 			&user.Name,
 			&user.Email,
 			&user.Age,
+			&user.Role,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 		); err != nil {
@@ -185,7 +193,7 @@ func (r *PostgresRepository) Update(ctx context.Context, user User) (User, error
 		    age = $3,
 		    updated_at = now()
 		WHERE id = $4
-		RETURNING id, name, email, age, created_at, updated_at
+		RETURNING id, name, email, age, role, created_at, updated_at
 	`
 
 	var updated User
@@ -195,6 +203,7 @@ func (r *PostgresRepository) Update(ctx context.Context, user User) (User, error
 		&updated.Name,
 		&updated.Email,
 		&updated.Age,
+		&updated.Role,
 		&updated.CreatedAt,
 		&updated.UpdatedAt,
 	)
@@ -216,7 +225,7 @@ func (r *PostgresRepository) Update(ctx context.Context, user User) (User, error
 
 func (r *PostgresRepository) FindByEmail(ctx context.Context, email string) (User, error) {
 	const query = `
-		select id, name, email, age, password_hash, created_at, updated_at 
+		select id, name, email, age, role, password_hash, created_at, updated_at 
 		from users
 		where email = $1
 	`
@@ -228,6 +237,7 @@ func (r *PostgresRepository) FindByEmail(ctx context.Context, email string) (Use
 		&user.Name,
 		&user.Email,
 		&user.Age,
+		&user.Role,
 		&user.PasswordHash,
 		&user.CreatedAt,
 		&user.UpdatedAt,

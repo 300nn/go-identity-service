@@ -33,9 +33,15 @@ func newTestUserApp(t *testing.T) testUserApp {
 
 	mux := http.NewServeMux()
 
-	handler.RegisterRouts(mux, func(next http.Handler) http.Handler {
-		return next
-	})
+	handler.RegisterRouts(
+		mux,
+		func(next http.Handler) http.Handler {
+			return next
+		},
+		func(next http.Handler) http.Handler {
+			return next
+		},
+	)
 
 	return testUserApp{
 		handler: mux,

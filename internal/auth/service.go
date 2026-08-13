@@ -51,6 +51,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 		Email:        email,
 		Age:          req.Age,
 		PasswordHash: passwordHash,
+		Role:         user.RoleUser,
 	})
 
 	if err != nil {
@@ -60,7 +61,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 		return AuthResponse{}, err
 	}
 
-	token, err := s.tokens.Generate(created.ID, created.Email)
+	token, err := s.tokens.Generate(created.ID, created.Email, string(created.Role))
 
 	if err != nil {
 		return AuthResponse{}, err
@@ -88,7 +89,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (AuthResponse, er
 		return AuthResponse{}, NewInvalidCredentialsError()
 	}
 
-	token, err := s.tokens.Generate(found.ID, found.Email)
+	token, err := s.tokens.Generate(found.ID, found.Email, string(found.Role))
 	if err != nil {
 		return AuthResponse{}, err
 	}

@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/user"
 	"testing"
 	"time"
 )
@@ -11,7 +12,7 @@ const testJWTSecret = "test-secret-with-at-least-32-characters"
 func TestTokenManager_GenerateAndParse(t *testing.T) {
 	manager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
 
-	token, err := manager.Generate(12, "alex@ee.com")
+	token, err := manager.Generate(12, "alex@ee.com", "USER")
 	if err != nil {
 		t.Fatalf("Error generating token: %v", err)
 	}
@@ -37,12 +38,16 @@ func TestTokenManager_GenerateAndParse(t *testing.T) {
 	if claims.Email != "alex@ee.com" {
 		t.Fatalf("Expected email %s, got %s", "alex@ee.com", claims.Email)
 	}
+
+	if claims.Role != string(user.RoleUser) {
+		t.Fatalf("expected role %q, got %q", "USER", claims.Role)
+	}
 }
 
 func TestTokenManager_Parse_WrongSecret(t *testing.T) {
 	manager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
 
-	token, err := manager.Generate(123, "alex@example.com")
+	token, err := manager.Generate(123, "alex@example.com", "USER")
 	if err != nil {
 		t.Fatalf("Generate returned error: %v", err)
 	}
@@ -62,7 +67,7 @@ func TestTokenManager_Parse_WrongSecret(t *testing.T) {
 func TestTokenManager_Parse_ExpiredToken(t *testing.T) {
 	manager := auth.NewTokenManager(testJWTSecret, -time.Minute, "go-crud-api")
 
-	token, err := manager.Generate(123, "alex@example.com")
+	token, err := manager.Generate(123, "alex@example.com", "USER")
 	if err != nil {
 		t.Fatalf("Generate returned error: %v", err)
 	}

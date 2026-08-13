@@ -1,10 +1,14 @@
 package auth
 
-import "context"
+import (
+	"CrudTutorialProject/internal/user"
+	"context"
+)
 
 type Principal struct {
 	UserID int64
 	Email  string
+	Role   user.Role
 }
 
 type contextKey string
