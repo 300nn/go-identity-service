@@ -13,6 +13,7 @@ import (
 type testAuthApp struct {
 	userRepo    *fakeUserRepository
 	refreshRepo *fakeRefreshTokenRepository
+	txFactory   *fakeTxFactory
 	hasher      *auth.PasswordHasher
 	tokens      *auth.TokenManager
 	refresh     *auth.RefreshTokenManager
@@ -29,9 +30,12 @@ func newTestAuthApp(t *testing.T) testAuthApp {
 	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
 	refresh := auth.NewRefreshTokenManager()
 
+	txFactory := newFakeTxFactory(userRepo, refreshRepo)
+
 	service := auth.NewService(
 		userRepo,
 		refreshRepo,
+		txFactory,
 		hasher,
 		tokens,
 		refresh,
@@ -41,6 +45,7 @@ func newTestAuthApp(t *testing.T) testAuthApp {
 	return testAuthApp{
 		userRepo:    userRepo,
 		refreshRepo: refreshRepo,
+		txFactory:   txFactory,
 		hasher:      hasher,
 		tokens:      tokens,
 		refresh:     refresh,
@@ -425,5 +430,121 @@ func TestService_Logout_IsIdempotent(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("Logout with unknown token returned error: %v", err)
+	}
+}
+
+func TestService_Refresh_CreateNewTokenFails_DoesNotRevokeOldToken(t *testing.T) {
+	ctx := t.Context()
+
+	userRepo := newFakeUserRepository()
+	baseRefreshRepo := newFakeRefreshTokenRepository()
+	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
+	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	refresh := auth.NewRefreshTokenManager()
+
+	normalTxFactory := newFakeTxFactory(userRepo, baseRefreshRepo)
+
+	service := auth.NewService(
+		userRepo,
+		baseRefreshRepo,
+		normalTxFactory,
+		hasher,
+		tokens,
+		refresh,
+		30*24*time.Hour,
+	)
+
+	registerResult, err := service.Register(ctx, auth.RegisterRequest{
+		Name:     "Alex",
+		Email:    "alex@example.com",
+		Age:      25,
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+
+	failingRefreshRepo := &failingCreateRefreshTokenStore{
+		RefreshTokenStore: baseRefreshRepo,
+	}
+
+	failingTxFactory := newFakeTxFactoryWithRefreshStore(userRepo, baseRefreshRepo, failingRefreshRepo)
+
+	serviceWithFailingTx := auth.NewService(
+		userRepo,
+		baseRefreshRepo,
+		failingTxFactory,
+		hasher,
+		tokens,
+		refresh,
+		30*24*time.Hour,
+	)
+
+	_, err = serviceWithFailingTx.Refresh(ctx, auth.RefreshRequest{
+		RefreshToken: registerResult.RefreshToken,
+	})
+	if err == nil {
+		t.Fatal("expected refresh error, got nil")
+	}
+
+	_, err = service.Refresh(ctx, auth.RefreshRequest{
+		RefreshToken: registerResult.RefreshToken,
+	})
+	if err != nil {
+		t.Fatalf("expected old refresh token to remain active, got error: %v", err)
+	}
+}
+
+func TestService_Register_CreateRefreshTokenFails_RollsBackUser(t *testing.T) {
+	ctx := t.Context()
+
+	userRepo := newFakeUserRepository()
+	refreshRepo := newFakeRefreshTokenRepository()
+
+	failingRefreshStore := &failingCreateRefreshTokenStore{
+		RefreshTokenStore: refreshRepo,
+	}
+
+	txFactory := newFakeTxFactoryWithRefreshStore(
+		userRepo,
+		refreshRepo,
+		failingRefreshStore,
+	)
+
+	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
+	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	refreshTokens := auth.NewRefreshTokenManager()
+
+	service := auth.NewService(
+		userRepo,
+		refreshRepo,
+		txFactory,
+		hasher,
+		tokens,
+		refreshTokens,
+		30*24*time.Hour,
+	)
+
+	_, err := service.Register(ctx, auth.RegisterRequest{
+		Name:     "Alex",
+		Email:    "alex@example.com",
+		Age:      25,
+		Password: "password123",
+	})
+	if err == nil {
+		t.Fatal("expected register error, got nil")
+	}
+
+	exists, err := userRepo.ExistsByEmail(ctx, "alex@example.com")
+	if err != nil {
+		t.Fatalf("ExistsByEmail returned error: %v", err)
+	}
+
+	if exists {
+		t.Fatal("expected user to be rolled back")
+	}
+
+	if len(refreshRepo.tokens) != 0 {
+		t.Fatalf("expected refresh tokens to be rolled back, got %d", len(refreshRepo.tokens))
 	}
 }

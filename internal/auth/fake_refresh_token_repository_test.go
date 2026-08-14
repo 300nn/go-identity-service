@@ -3,6 +3,7 @@ package auth_test
 import (
 	"CrudTutorialProject/internal/auth"
 	"context"
+	"errors"
 	"time"
 )
 
@@ -66,4 +67,17 @@ func (r *fakeRefreshTokenRepository) countActiveTokens(userID int64) int {
 	}
 
 	return count
+}
+
+type failingCreateRefreshTokenStore struct {
+	auth.RefreshTokenStore
+}
+
+var errCreateRefreshTokenFailed = errors.New("create refresh token failed")
+
+func (s *failingCreateRefreshTokenStore) CreateRefreshToken(
+	ctx context.Context,
+	token auth.RefreshToken,
+) (auth.RefreshToken, error) {
+	return auth.RefreshToken{}, errCreateRefreshTokenFailed
 }

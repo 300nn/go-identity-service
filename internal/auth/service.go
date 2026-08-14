@@ -25,6 +25,7 @@ type RefreshTokenStore interface {
 type Service struct {
 	userRepo        UserStore
 	refreshRepo     RefreshTokenStore
+	txFactory       TxFactory
 	hasher          *PasswordHasher
 	tokens          *TokenManager
 	refreshTokens   *RefreshTokenManager
@@ -34,6 +35,7 @@ type Service struct {
 func NewService(
 	userRepo UserStore,
 	refreshRepo RefreshTokenStore,
+	txFactory TxFactory,
 	hasher *PasswordHasher,
 	tokens *TokenManager,
 	refreshTokens *RefreshTokenManager,
@@ -42,6 +44,7 @@ func NewService(
 	return &Service{
 		userRepo:        userRepo,
 		refreshRepo:     refreshRepo,
+		txFactory:       txFactory,
 		hasher:          hasher,
 		tokens:          tokens,
 		refreshTokens:   refreshTokens,
@@ -53,46 +56,58 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 	name := strings.TrimSpace(req.Name)
 	email := strings.TrimSpace(strings.ToLower(req.Email))
 
-	exist, err := s.userRepo.ExistsByEmail(ctx, email)
-	if err != nil {
-		return AuthResponse{}, fmt.Errorf("check email exists: %w", err)
-	}
-	if exist {
-		return AuthResponse{}, user.NewEmailAlreadyExistsError()
-	}
-
 	passwordHash, err := s.hasher.Hash(req.Password)
 	if err != nil {
 		return AuthResponse{}, err
 	}
 
-	created, err := s.userRepo.Create(ctx, user.User{
-		Name:         name,
-		Email:        email,
-		Age:          req.Age,
-		PasswordHash: passwordHash,
-		Role:         user.RoleUser,
+	var result AuthResponse
+
+	err = s.txFactory.WithinTx(ctx, func(stores TxStores) error {
+		exist, err := stores.UserStore.ExistsByEmail(ctx, email)
+		if err != nil {
+			return fmt.Errorf("check email exists: %w", err)
+		}
+		if exist {
+			return user.NewEmailAlreadyExistsError()
+		}
+
+		created, err := stores.UserStore.Create(ctx, user.User{
+			Name:         name,
+			Email:        email,
+			Age:          req.Age,
+			PasswordHash: passwordHash,
+			Role:         user.RoleUser,
+		})
+
+		if err != nil {
+			if errors.Is(err, user.ErrEmailAlreadyExists) {
+				return user.NewEmailAlreadyExistsError()
+			}
+			return err
+		}
+
+		accessToken, refreshToken, err := s.issueTokenPairWithStore(ctx, stores.RefreshTokenStore, created)
+
+		if err != nil {
+			return err
+		}
+
+		result = AuthResponse{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			TokenType:    "Bearer",
+			User:         user.ToResponse(created),
+		}
+
+		return nil
 	})
 
 	if err != nil {
-		if errors.Is(err, user.ErrEmailAlreadyExists) {
-			return AuthResponse{}, user.NewEmailAlreadyExistsError()
-		}
 		return AuthResponse{}, err
 	}
 
-	accessToken, refreshToken, err := s.issueTokenPair(ctx, created)
-
-	if err != nil {
-		return AuthResponse{}, err
-	}
-
-	return AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		TokenType:    "Bearer",
-		User:         user.ToResponse(created),
-	}, nil
+	return result, nil
 }
 
 func (s *Service) Login(ctx context.Context, req LoginRequest) (AuthResponse, error) {
@@ -141,42 +156,56 @@ func (s *Service) Me(ctx context.Context, userId int64) (MeResponse, error) {
 func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (AuthResponse, error) {
 	hash := s.refreshTokens.Hash(req.RefreshToken)
 
-	storedToken, err := s.refreshRepo.FindRefreshTokenByHash(ctx, hash)
+	var result AuthResponse
 
-	if err != nil {
-		if errors.Is(err, ErrRefreshTokenNotFound) {
-			return AuthResponse{}, NewUnauthorizedError()
+	err := s.txFactory.WithinTx(ctx, func(stores TxStores) error {
+		storedToken, err := stores.RefreshTokenStore.FindRefreshTokenByHash(ctx, hash)
+		if err != nil {
+			if errors.Is(err, ErrRefreshTokenNotFound) {
+				return NewUnauthorizedError()
+			}
+			return fmt.Errorf("find refresh token by hash: %w", err)
 		}
-		return AuthResponse{}, fmt.Errorf("find refresh token by hash: %w", err)
-	}
 
-	now := time.Now()
+		now := time.Now().UTC()
 
-	if !storedToken.IsActive(now) {
-		return AuthResponse{}, NewUnauthorizedError()
-	}
+		if !storedToken.IsActive(now) {
+			return NewUnauthorizedError()
+		}
 
-	usr, err := s.userRepo.FindByID(ctx, storedToken.UserID)
+		usr, err := stores.UserStore.FindByID(ctx, storedToken.UserID)
+		if err != nil {
+			if errors.Is(err, user.ErrUserNotFound) {
+				return NewUnauthorizedError()
+			}
+			return fmt.Errorf("find user by id: %w", err)
+		}
 
-	if err != nil {
-		return AuthResponse{}, fmt.Errorf("find usr by id: %w", err)
-	}
+		accessToken, refreshToken, err := s.issueTokenPairWithStore(ctx, stores.RefreshTokenStore, usr)
 
-	if err := s.refreshRepo.RevokeRefreshToken(ctx, storedToken.ID); err != nil {
-		return AuthResponse{}, fmt.Errorf("revoke old refresh token: %w", err)
-	}
+		if err != nil {
+			return err
+		}
 
-	accessToken, refreshToken, err := s.issueTokenPair(ctx, usr)
+		if err := stores.RefreshTokenStore.RevokeRefreshToken(ctx, storedToken.ID); err != nil {
+			return fmt.Errorf("revoke old refresh token: %w", err)
+		}
+
+		result = AuthResponse{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			TokenType:    "Bearer",
+			User:         user.ToResponse(usr),
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		return AuthResponse{}, err
 	}
 
-	return AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		TokenType:    "Bearer",
-		User:         user.ToResponse(usr),
-	}, nil
+	return result, nil
 }
 
 func (s *Service) Logout(ctx context.Context, req LogoutRequest) error {
@@ -203,11 +232,15 @@ func (s *Service) Logout(ctx context.Context, req LogoutRequest) error {
 	return nil
 }
 
-func (s *Service) issueTokenPair(ctx context.Context, user user.User) (string, string, error) {
+func (s *Service) issueTokenPairWithStore(
+	ctx context.Context,
+	refreshRepo RefreshTokenStore,
+	usr user.User,
+) (string, string, error) {
 	accessToken, err := s.tokens.Generate(
-		user.ID,
-		user.Email,
-		string(user.Role),
+		usr.ID,
+		usr.Email,
+		string(usr.Role),
 	)
 
 	if err != nil {
@@ -220,10 +253,10 @@ func (s *Service) issueTokenPair(ctx context.Context, user user.User) (string, s
 		return "", "", err
 	}
 
-	_, err = s.refreshRepo.CreateRefreshToken(
+	_, err = refreshRepo.CreateRefreshToken(
 		ctx,
 		RefreshToken{
-			UserID:    user.ID,
+			UserID:    usr.ID,
 			TokenHash: refreshTokenHash,
 			ExpiresAt: time.Now().UTC().Add(s.refreshTokenTTL),
 		},
@@ -234,4 +267,8 @@ func (s *Service) issueTokenPair(ctx context.Context, user user.User) (string, s
 	}
 
 	return accessToken, refreshToken, nil
+}
+
+func (s *Service) issueTokenPair(ctx context.Context, user user.User) (string, string, error) {
+	return s.issueTokenPairWithStore(ctx, s.refreshRepo, user)
 }

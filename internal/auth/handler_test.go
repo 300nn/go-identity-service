@@ -19,6 +19,7 @@ type testAuthHTTPApp struct {
 	handler     http.Handler
 	userRepo    *fakeUserRepository
 	refreshRepo *fakeRefreshTokenRepository
+	txFactory   *fakeTxFactory
 	hasher      *auth.PasswordHasher
 	tokens      *auth.TokenManager
 	refresh     *auth.RefreshTokenManager
@@ -32,8 +33,9 @@ func newTestAuthHTTPApp(t *testing.T) *testAuthHTTPApp {
 	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
 	refreshTokens := auth.NewRefreshTokenManager()
 	refreshTokenRepo := newFakeRefreshTokenRepository()
+	txFactory := newFakeTxFactory(repo, refreshTokenRepo)
 
-	service := auth.NewService(repo, refreshTokenRepo, hasher, tokens, refreshTokens, 15*time.Hour)
+	service := auth.NewService(repo, refreshTokenRepo, txFactory, hasher, tokens, refreshTokens, 15*time.Hour)
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	validator := validation.New()
@@ -48,6 +50,7 @@ func newTestAuthHTTPApp(t *testing.T) *testAuthHTTPApp {
 		handler:     mux,
 		userRepo:    repo,
 		refreshRepo: refreshTokenRepo,
+		txFactory:   txFactory,
 		hasher:      hasher,
 		tokens:      tokens,
 		refresh:     refreshTokens,
@@ -86,13 +89,13 @@ func decodeAuthJSON[T any](t *testing.T, res *http.Response) T {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-
+			t.Fatalf("failed to close response body: %v", err)
 		}
 	}(res.Body)
 
 	var dst T
 	if err := json.NewDecoder(res.Body).Decode(&dst); err != nil {
-		t.Fatalf("failed to decode auth response: %s", err)
+		t.Fatalf("failed to decode auth response: %v", err)
 	}
 
 	return dst

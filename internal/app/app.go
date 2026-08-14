@@ -163,9 +163,12 @@ func initAuthModule(
 
 	refreshTokens := auth.NewRefreshTokenManager()
 
+	txFactory := auth.NewPostgresTxFactory(db)
+
 	authService := auth.NewService(
 		userRepo,
 		refreshStore,
+		txFactory,
 		auth.NewPasswordHasher(),
 		tokenManager,
 		refreshTokens,

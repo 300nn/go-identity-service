@@ -1,6 +1,7 @@
 package user_test
 
 import (
+	"CrudTutorialProject/internal/testutils"
 	"CrudTutorialProject/internal/user"
 	"context"
 	"errors"
@@ -24,7 +25,7 @@ func countRows(t *testing.T, ctx context.Context, pool *pgxpool.Pool, query stri
 func TestPostgresTxRepositoryFactory_WithinTx_Commits(t *testing.T) {
 	ctx := t.Context()
 
-	pool := newTestPostgresPool(t)
+	pool := testutils.NewTestPostgresPool(t)
 	txFactory := user.NewPostgresTxRepositoryFactory(pool)
 
 	var createdID int64
@@ -62,7 +63,7 @@ func TestPostgresTxRepositoryFactory_WithinTx_Commits(t *testing.T) {
 func TestPostgresTxRepositoryFactory_WithinTx_RollsBack(t *testing.T) {
 	ctx := t.Context()
 
-	pool := newTestPostgresPool(t)
+	pool := testutils.NewTestPostgresPool(t)
 	txFactory := user.NewPostgresTxRepositoryFactory(pool)
 
 	expectedErr := errors.New("force rollback")
@@ -103,7 +104,7 @@ func TestPostgresTxRepositoryFactory_WithinTx_RollsBack(t *testing.T) {
 func TestService_CreateUserWithProfile_Commits(t *testing.T) {
 	ctx := t.Context()
 
-	pool := newTestPostgresPool(t)
+	pool := testutils.NewTestPostgresPool(t)
 
 	repo := user.NewPostgresRepository(pool)
 	txFactory := user.NewPostgresTxRepositoryFactory(pool)
@@ -171,7 +172,7 @@ func TestService_CreateUserWithProfile_Commits(t *testing.T) {
 func TestService_CreateUserWithProfile_DuplicateEmail(t *testing.T) {
 	ctx := t.Context()
 
-	pool := newTestPostgresPool(t)
+	pool := testutils.NewTestPostgresPool(t)
 
 	repo := user.NewPostgresRepository(pool)
 	txFactory := user.NewPostgresTxRepositoryFactory(pool)

@@ -1,6 +1,7 @@
 .idea/
 *.iml
 .env
+.git
 *.exe
 /bin/
 

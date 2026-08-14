@@ -39,6 +39,9 @@ func (r *FakeRepository) Create(ctx context.Context, usr user.User) (user.User, 
 	usr.ID = r.nextUserID
 	usr.CreatedAt = now
 	usr.UpdatedAt = now
+	if usr.Role == "" {
+		usr.Role = user.RoleUser
+	}
 
 	r.users[usr.ID] = usr
 	r.nextUserID++
