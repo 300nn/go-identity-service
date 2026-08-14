@@ -24,6 +24,9 @@ func NewHandler(service *Service, logger *slog.Logger, validator *validation.Val
 func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMiddleware *MiddleWare) {
 	mux.HandleFunc("POST /auth/register", h.Register)
 	mux.HandleFunc("POST /auth/login", h.Login)
+	mux.HandleFunc("POST /auth/refresh", h.Refresh)
+	mux.HandleFunc("POST /auth/logout", h.Logout)
+
 	mux.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(h.Me)))
 }
 
@@ -66,6 +69,46 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, result)
+}
+
+func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
+	req, ok := response.DecodeJSON[RefreshRequest](w, r)
+	if !ok {
+		return
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		response.HandleError(w, h.logger, err)
+		return
+	}
+
+	result, err := h.service.Refresh(r.Context(), req)
+	if err != nil {
+		response.HandleError(w, h.logger, err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, result)
+}
+
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	req, ok := response.DecodeJSON[LogoutRequest](w, r)
+
+	if !ok {
+		return
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		response.HandleError(w, h.logger, err)
+		return
+	}
+
+	if err := h.service.Logout(r.Context(), req); err != nil {
+		response.HandleError(w, h.logger, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {

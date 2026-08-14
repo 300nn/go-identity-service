@@ -10,27 +10,41 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type TestAuthApp struct {
-	repo    auth.UserStore
-	hasher  *auth.PasswordHasher
-	tokens  *auth.TokenManager
-	service *auth.Service
+type testAuthApp struct {
+	userRepo    *fakeUserRepository
+	refreshRepo *fakeRefreshTokenRepository
+	hasher      *auth.PasswordHasher
+	tokens      *auth.TokenManager
+	refresh     *auth.RefreshTokenManager
+	service     *auth.Service
 }
 
-func newTestAuthApp(t *testing.T) *TestAuthApp {
+func newTestAuthApp(t *testing.T) testAuthApp {
 	t.Helper()
 
-	repo := newFakeUserRepository()
-	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	userRepo := newFakeUserRepository()
+	refreshRepo := newFakeRefreshTokenRepository()
+
 	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
+	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	refresh := auth.NewRefreshTokenManager()
 
-	service := auth.NewService(repo, hasher, tokens)
+	service := auth.NewService(
+		userRepo,
+		refreshRepo,
+		hasher,
+		tokens,
+		refresh,
+		30*24*time.Hour,
+	)
 
-	return &TestAuthApp{
-		repo:    repo,
-		hasher:  hasher,
-		tokens:  tokens,
-		service: service,
+	return testAuthApp{
+		userRepo:    userRepo,
+		refreshRepo: refreshRepo,
+		hasher:      hasher,
+		tokens:      tokens,
+		refresh:     refresh,
+		service:     service,
 	}
 }
 
@@ -68,7 +82,26 @@ func TestService_Register_Success(t *testing.T) {
 		t.Fatalf("expected email %q, got %q", "alex@example.com", result.User.Email)
 	}
 
-	saved, err := app.repo.FindByEmail(ctx, "alex@example.com")
+	if result.RefreshToken == "" {
+		t.Fatal("expected refresh token to be set")
+	}
+
+	hash := app.refresh.Hash(result.RefreshToken)
+
+	stored, err := app.refreshRepo.FindRefreshTokenByHash(ctx, hash)
+	if err != nil {
+		t.Fatalf("FindRefreshTokenByHash returned error: %v", err)
+	}
+
+	if stored.TokenHash == result.RefreshToken {
+		t.Fatal("stored refresh token must not equal plain refresh token")
+	}
+
+	if stored.UserID != result.User.ID {
+		t.Fatalf("expected refresh token user id %d, got %d", result.User.ID, stored.UserID)
+	}
+
+	saved, err := app.userRepo.FindByEmail(ctx, "alex@example.com")
 	if err != nil {
 		t.Fatalf("FindByEmail returned error: %v", err)
 	}
@@ -133,14 +166,14 @@ func TestService_Login_Success(t *testing.T) {
 		t.Fatalf("Hash returned error: %v", err)
 	}
 
-	created, err := app.repo.Create(ctx, user.User{
+	created, err := app.userRepo.Create(ctx, user.User{
 		Name:         "Alex",
 		Email:        "alex@example.com",
 		Age:          25,
 		PasswordHash: passwordHash,
 	})
 	if err != nil {
-		t.Fatalf("repo.Create returned error: %v", err)
+		t.Fatalf("userRepo.Create returned error: %v", err)
 	}
 
 	result, err := app.service.Login(ctx, auth.LoginRequest{
@@ -149,6 +182,25 @@ func TestService_Login_Success(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("Login returned error: %v", err)
+	}
+
+	if result.RefreshToken == "" {
+		t.Fatal("expected refresh token to be set")
+	}
+
+	hash := app.refresh.Hash(result.RefreshToken)
+
+	stored, err := app.refreshRepo.FindRefreshTokenByHash(ctx, hash)
+	if err != nil {
+		t.Fatalf("FindRefreshTokenByHash returned error: %v", err)
+	}
+
+	if stored.TokenHash == result.RefreshToken {
+		t.Fatal("stored refresh token must not equal plain refresh token")
+	}
+
+	if stored.UserID != result.User.ID {
+		t.Fatalf("expected refresh token user id %d, got %d", result.User.ID, stored.UserID)
 	}
 
 	if result.AccessToken == "" {
@@ -169,14 +221,14 @@ func TestService_Login_WrongPassword(t *testing.T) {
 		t.Fatalf("Hash returned error: %v", err)
 	}
 
-	_, err = app.repo.Create(ctx, user.User{
+	_, err = app.userRepo.Create(ctx, user.User{
 		Name:         "Alex",
 		Email:        "alex@example.com",
 		Age:          25,
 		PasswordHash: passwordHash,
 	})
 	if err != nil {
-		t.Fatalf("repo.Create returned error: %v", err)
+		t.Fatalf("userRepo.Create returned error: %v", err)
 	}
 
 	_, err = app.service.Login(ctx, auth.LoginRequest{
@@ -213,14 +265,14 @@ func TestService_Me_Success(t *testing.T) {
 	ctx := t.Context()
 	app := newTestAuthApp(t)
 
-	created, err := app.repo.Create(ctx, user.User{
+	created, err := app.userRepo.Create(ctx, user.User{
 		Name:         "Alex",
 		Email:        "alex@example.com",
 		Age:          25,
 		PasswordHash: "hash",
 	})
 	if err != nil {
-		t.Fatalf("repo.Create returned error: %v", err)
+		t.Fatalf("userRepo.Create returned error: %v", err)
 	}
 
 	result, err := app.service.Me(ctx, created.ID)
@@ -230,5 +282,148 @@ func TestService_Me_Success(t *testing.T) {
 
 	if result.User.ID != created.ID {
 		t.Fatalf("expected user id %d, got %d", created.ID, result.User.ID)
+	}
+}
+
+func TestService_Refresh_Success(t *testing.T) {
+	ctx := t.Context()
+	app := newTestAuthApp(t)
+
+	registerResult, err := app.service.Register(ctx, auth.RegisterRequest{
+		Name:     "Alex",
+		Email:    "alex@example.com",
+		Age:      25,
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+
+	refreshResult, err := app.service.Refresh(ctx, auth.RefreshRequest{
+		RefreshToken: registerResult.RefreshToken,
+	})
+	if err != nil {
+		t.Fatalf("Refresh returned error: %v", err)
+	}
+
+	if refreshResult.AccessToken == "" {
+		t.Fatal("expected access token to be set")
+	}
+
+	if refreshResult.RefreshToken == "" {
+		t.Fatal("expected refresh token to be set")
+	}
+
+	if refreshResult.RefreshToken == registerResult.RefreshToken {
+		t.Fatal("expected refresh token rotation")
+	}
+
+	if refreshResult.User.ID != registerResult.User.ID {
+		t.Fatalf("expected user id %d, got %d", registerResult.User.ID, refreshResult.User.ID)
+	}
+
+	claims, err := app.tokens.Parse(refreshResult.AccessToken)
+	if err != nil {
+		t.Fatalf("Parse access token returned error: %v", err)
+	}
+
+	if claims.UserId != registerResult.User.ID {
+		t.Fatalf("expected claims user id %d, got %d", registerResult.User.ID, claims.UserId)
+	}
+}
+
+func TestService_Refresh_RotationRevokesOldToken(t *testing.T) {
+	ctx := t.Context()
+	app := newTestAuthApp(t)
+
+	registerResult, err := app.service.Register(ctx, auth.RegisterRequest{
+		Name:     "Alex",
+		Email:    "alex@example.com",
+		Age:      25,
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+
+	firstRefreshToken := registerResult.RefreshToken
+
+	_, err = app.service.Refresh(ctx, auth.RefreshRequest{
+		RefreshToken: firstRefreshToken,
+	})
+	if err != nil {
+		t.Fatalf("first Refresh returned error: %v", err)
+	}
+
+	_, err = app.service.Refresh(ctx, auth.RefreshRequest{
+		RefreshToken: firstRefreshToken,
+	})
+	if err == nil {
+		t.Fatal("expected old refresh token to be rejected")
+	}
+
+	if !errors.Is(err, auth.ErrUnauthorized) {
+		t.Fatalf("expected ErrUnauthorized, got %v", err)
+	}
+}
+
+func TestService_Refresh_InvalidToken(t *testing.T) {
+	ctx := t.Context()
+	app := newTestAuthApp(t)
+
+	_, err := app.service.Refresh(ctx, auth.RefreshRequest{
+		RefreshToken: "invalid-refresh-token",
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	if !errors.Is(err, auth.ErrUnauthorized) {
+		t.Fatalf("expected ErrUnauthorized, got %v", err)
+	}
+}
+
+func TestService_Logout_RevokesRefreshToken(t *testing.T) {
+	ctx := t.Context()
+	app := newTestAuthApp(t)
+
+	registerResult, err := app.service.Register(ctx, auth.RegisterRequest{
+		Name:     "Alex",
+		Email:    "alex@example.com",
+		Age:      25,
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+
+	err = app.service.Logout(ctx, auth.LogoutRequest{
+		RefreshToken: registerResult.RefreshToken,
+	})
+	if err != nil {
+		t.Fatalf("Logout returned error: %v", err)
+	}
+
+	_, err = app.service.Refresh(ctx, auth.RefreshRequest{
+		RefreshToken: registerResult.RefreshToken,
+	})
+	if err == nil {
+		t.Fatal("expected refresh after logout to fail")
+	}
+
+	if !errors.Is(err, auth.ErrUnauthorized) {
+		t.Fatalf("expected ErrUnauthorized, got %v", err)
+	}
+}
+
+func TestService_Logout_IsIdempotent(t *testing.T) {
+	ctx := t.Context()
+	app := newTestAuthApp(t)
+
+	err := app.service.Logout(ctx, auth.LogoutRequest{
+		RefreshToken: "unknown-refresh-token",
+	})
+	if err != nil {
+		t.Fatalf("Logout with unknown token returned error: %v", err)
 	}
 }

@@ -60,8 +60,9 @@ type AppConfig struct {
 }
 
 type AuthConfig struct {
-	JWTSecret      string        `yaml:"jwt_secret" env:"JWT_SECRET" env-default:"local-dev-secret-change-me-please-32" validate:"required,min=32"`
-	AccessTokenTTL time.Duration `yaml:"access_token_ttl" env:"ACCESS_TOKEN_TTL" env-default:"15m" validate:"gt=0"`
+	JWTSecret       string        `yaml:"jwt_secret" env:"JWT_SECRET" env-default:"local-dev-secret-change-me-please-32" validate:"required,min=32"`
+	AccessTokenTTL  time.Duration `yaml:"access_token_ttl" env:"ACCESS_TOKEN_TTL" env-default:"15m" validate:"gt=0"`
+	RefreshTokenTTL time.Duration `yaml:"refresh_token_ttl" env:"REFRESH_TOKEN_TTL" env-default:"720h" validate:"gt=0"`
 }
 
 func (d *DatabaseConfig) DatabaseUrl() string {

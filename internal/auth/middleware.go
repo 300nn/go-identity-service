@@ -125,7 +125,7 @@ func PathInt64Param(name string) ResourceIDExtractor {
 		}
 		id, err := strconv.ParseInt(raw, 10, 64)
 
-		if err != nil {
+		if err != nil || id <= 0 {
 			return 0, fmt.Errorf("path parameter %s is invalid: %s", name, err)
 		}
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type UserStore interface {
@@ -15,17 +16,36 @@ type UserStore interface {
 	FindByEmail(ctx context.Context, email string) (user.User, error)
 }
 
-type Service struct {
-	userRepo UserStore
-	hasher   *PasswordHasher
-	tokens   *TokenManager
+type RefreshTokenStore interface {
+	CreateRefreshToken(ctx context.Context, token RefreshToken) (RefreshToken, error)
+	FindRefreshTokenByHash(ctx context.Context, hash string) (RefreshToken, error)
+	RevokeRefreshToken(ctx context.Context, id int64) error
 }
 
-func NewService(userRepo UserStore, hasher *PasswordHasher, tokens *TokenManager) *Service {
+type Service struct {
+	userRepo        UserStore
+	refreshRepo     RefreshTokenStore
+	hasher          *PasswordHasher
+	tokens          *TokenManager
+	refreshTokens   *RefreshTokenManager
+	refreshTokenTTL time.Duration
+}
+
+func NewService(
+	userRepo UserStore,
+	refreshRepo RefreshTokenStore,
+	hasher *PasswordHasher,
+	tokens *TokenManager,
+	refreshTokens *RefreshTokenManager,
+	refreshTokenTTL time.Duration,
+) *Service {
 	return &Service{
-		userRepo: userRepo,
-		hasher:   hasher,
-		tokens:   tokens,
+		userRepo:        userRepo,
+		refreshRepo:     refreshRepo,
+		hasher:          hasher,
+		tokens:          tokens,
+		refreshTokens:   refreshTokens,
+		refreshTokenTTL: refreshTokenTTL,
 	}
 }
 
@@ -61,16 +81,17 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 		return AuthResponse{}, err
 	}
 
-	token, err := s.tokens.Generate(created.ID, created.Email, string(created.Role))
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, created)
 
 	if err != nil {
 		return AuthResponse{}, err
 	}
 
 	return AuthResponse{
-		AccessToken: token,
-		TokenType:   "Bearer",
-		User:        user.ToResponse(created),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		User:         user.ToResponse(created),
 	}, nil
 }
 
@@ -89,15 +110,16 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (AuthResponse, er
 		return AuthResponse{}, NewInvalidCredentialsError()
 	}
 
-	token, err := s.tokens.Generate(found.ID, found.Email, string(found.Role))
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, found)
 	if err != nil {
 		return AuthResponse{}, err
 	}
 
 	return AuthResponse{
-		AccessToken: token,
-		TokenType:   "Bearer",
-		User:        user.ToResponse(found),
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		User:         user.ToResponse(found),
 	}, nil
 }
 
@@ -114,4 +136,102 @@ func (s *Service) Me(ctx context.Context, userId int64) (MeResponse, error) {
 	return MeResponse{
 		User: user.ToResponse(found),
 	}, nil
+}
+
+func (s *Service) Refresh(ctx context.Context, req RefreshRequest) (AuthResponse, error) {
+	hash := s.refreshTokens.Hash(req.RefreshToken)
+
+	storedToken, err := s.refreshRepo.FindRefreshTokenByHash(ctx, hash)
+
+	if err != nil {
+		if errors.Is(err, ErrRefreshTokenNotFound) {
+			return AuthResponse{}, NewUnauthorizedError()
+		}
+		return AuthResponse{}, fmt.Errorf("find refresh token by hash: %w", err)
+	}
+
+	now := time.Now()
+
+	if !storedToken.IsActive(now) {
+		return AuthResponse{}, NewUnauthorizedError()
+	}
+
+	usr, err := s.userRepo.FindByID(ctx, storedToken.UserID)
+
+	if err != nil {
+		return AuthResponse{}, fmt.Errorf("find usr by id: %w", err)
+	}
+
+	if err := s.refreshRepo.RevokeRefreshToken(ctx, storedToken.ID); err != nil {
+		return AuthResponse{}, fmt.Errorf("revoke old refresh token: %w", err)
+	}
+
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, usr)
+	if err != nil {
+		return AuthResponse{}, err
+	}
+
+	return AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		User:         user.ToResponse(usr),
+	}, nil
+}
+
+func (s *Service) Logout(ctx context.Context, req LogoutRequest) error {
+	hash := s.refreshTokens.Hash(req.RefreshToken)
+
+	storedToken, err := s.refreshRepo.FindRefreshTokenByHash(ctx, hash)
+
+	if err != nil {
+		if errors.Is(err, ErrRefreshTokenNotFound) {
+			return nil
+		}
+
+		return fmt.Errorf("find refresh token: %w", err)
+	}
+
+	if storedToken.IsRevoked() {
+		return nil
+	}
+
+	if err := s.refreshRepo.RevokeRefreshToken(ctx, storedToken.ID); err != nil {
+		return fmt.Errorf("revoke refresh token: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) issueTokenPair(ctx context.Context, user user.User) (string, string, error) {
+	accessToken, err := s.tokens.Generate(
+		user.ID,
+		user.Email,
+		string(user.Role),
+	)
+
+	if err != nil {
+		return "", "", err
+	}
+
+	refreshToken, refreshTokenHash, err := s.refreshTokens.Generate()
+
+	if err != nil {
+		return "", "", err
+	}
+
+	_, err = s.refreshRepo.CreateRefreshToken(
+		ctx,
+		RefreshToken{
+			UserID:    user.ID,
+			TokenHash: refreshTokenHash,
+			ExpiresAt: time.Now().UTC().Add(s.refreshTokenTTL),
+		},
+	)
+
+	if err != nil {
+		return "", "", err
+	}
+
+	return accessToken, refreshToken, nil
 }

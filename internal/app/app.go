@@ -39,7 +39,7 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	initHealthModule(mux, dbPool, log, &shuttingDown, cfg)
 
-	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator)
+	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, dbPool)
 
 	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware)
 
@@ -124,7 +124,14 @@ func initHealthModule(mux *http.ServeMux, dbPool *pgxpool.Pool, log *slog.Logger
 
 }
 
-func initUserModule(mux *http.ServeMux, logger *slog.Logger, pool *pgxpool.Pool, userRepo user.Repository, validator *validation.Validator, ware *auth.MiddleWare) {
+func initUserModule(
+	mux *http.ServeMux,
+	logger *slog.Logger,
+	pool *pgxpool.Pool,
+	userRepo user.Repository,
+	validator *validation.Validator,
+	ware *auth.MiddleWare,
+) {
 	txFactory := user.NewPostgresTxRepositoryFactory(pool)
 	userService := user.NewService(userRepo, txFactory)
 	userHandler := user.NewHandler(userService, logger, validator)
@@ -138,17 +145,31 @@ func initUserModule(mux *http.ServeMux, logger *slog.Logger, pool *pgxpool.Pool,
 	)
 }
 
-func initAuthModule(mux *http.ServeMux, cfg *config.Config, log *slog.Logger, userRepo user.Repository, validator *validation.Validator) *auth.MiddleWare {
+func initAuthModule(
+	mux *http.ServeMux,
+	cfg *config.Config,
+	log *slog.Logger,
+	userRepo user.Repository,
+	validator *validation.Validator,
+	db *pgxpool.Pool) *auth.MiddleWare {
+
 	tokenManager := auth.NewTokenManager(
 		cfg.Auth.JWTSecret,
 		cfg.Auth.AccessTokenTTL,
 		cfg.App.Name,
 	)
 
+	refreshStore := auth.NewRefreshTokenRepository(db)
+
+	refreshTokens := auth.NewRefreshTokenManager()
+
 	authService := auth.NewService(
 		userRepo,
+		refreshStore,
 		auth.NewPasswordHasher(),
 		tokenManager,
+		refreshTokens,
+		cfg.Auth.RefreshTokenTTL,
 	)
 
 	authHandler := auth.NewHandler(authService, log, validator)
