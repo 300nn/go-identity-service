@@ -33,5 +33,8 @@ redis:
   password: ""
   db: 0
 
+cache:
+  user_ttl: 5m
+
 log:
   level: "info"

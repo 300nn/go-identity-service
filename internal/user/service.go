@@ -7,17 +7,36 @@ import (
 	"fmt"
 	"net/mail"
 	"strings"
+	"time"
 )
 
 type Service struct {
 	repo      Repository
 	txFactory TxRepositoryFactory
+
+	cache    Cache
+	cacheTTL time.Duration
 }
 
-func NewService(repo Repository, txFactory TxRepositoryFactory) *Service {
-	return &Service{
+type ServiceOption func(*Service)
+
+func NewService(repo Repository, txFactory TxRepositoryFactory, opts ...ServiceOption) *Service {
+	service := &Service{
 		repo:      repo,
 		txFactory: txFactory,
+	}
+
+	for _, opt := range opts {
+		opt(service)
+	}
+
+	return service
+}
+
+func WithCache(cache Cache, ttl time.Duration) ServiceOption {
+	return func(service *Service) {
+		service.cache = cache
+		service.cacheTTL = ttl
 	}
 }
 
@@ -87,12 +106,25 @@ func (s *Service) CreateUser(ctx context.Context, request CreateUserInput) (User
 		return User{}, fmt.Errorf("create user: %w", err)
 	}
 
+	if s.cache != nil {
+		_ = s.cache.SetUser(ctx, created, s.cacheTTL)
+	}
+
 	return created, nil
 }
 
 func (s *Service) GetUser(ctx context.Context, id int64) (User, error) {
 	if id <= 0 {
 		return User{}, NewInvalidUserIDError()
+	}
+
+	if s.cache != nil {
+		cached, ok, err := s.cache.GetUser(ctx, id)
+
+		if err == nil && ok {
+			return cached, nil
+		}
+
 	}
 
 	user, err := s.repo.FindByID(ctx, id)
@@ -102,6 +134,10 @@ func (s *Service) GetUser(ctx context.Context, id int64) (User, error) {
 			return User{}, NewUserNotFoundError()
 		}
 		return User{}, fmt.Errorf("find user by id %d: %w", id, err)
+	}
+
+	if s.cache != nil {
+		_ = s.cache.SetUser(ctx, user, s.cacheTTL)
 	}
 
 	return user, nil
@@ -174,6 +210,10 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, user UpdateUserInput
 		return User{}, fmt.Errorf("update user by id %d: %w ", id, err)
 	}
 
+	if s.cache != nil {
+		_ = s.cache.SetUser(ctx, updated, s.cacheTTL)
+	}
+
 	return updated, nil
 }
 
@@ -188,6 +228,10 @@ func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 		}
 
 		return fmt.Errorf("delete user by id %d: %w", id, err)
+	}
+
+	if s.cache != nil {
+		_ = s.cache.DeleteUser(ctx, id)
 	}
 
 	return nil
@@ -280,6 +324,10 @@ func (s *Service) CreateUserWithProfile(ctx context.Context, input CreateUserWit
 	})
 	if err != nil {
 		return ProfileWithUser{}, err
+	}
+
+	if s.cache != nil {
+		_ = s.cache.SetUser(ctx, res.User, s.cacheTTL)
 	}
 
 	return res, nil

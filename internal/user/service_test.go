@@ -5,6 +5,7 @@ import (
 	"CrudTutorialProject/internal/user"
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestService_CreateUser_Success(t *testing.T) {
@@ -286,5 +287,193 @@ func TestService_ListUsers(t *testing.T) {
 
 	if result.Users[0].Email != "alex@example.com" {
 		t.Fatalf("expected first user email %q, got %q", "alex@example.com", result.Users[0].Email)
+	}
+}
+
+func TestService_GetUser_ReturnsFromCache(t *testing.T) {
+	ctx := t.Context()
+
+	repo := newFakeRepository()
+	cache := newFakeUserCache()
+
+	cachedUser := user.User{
+		ID:    1,
+		Name:  "Cached Alex",
+		Email: "cached@example.com",
+		Age:   25,
+		Role:  user.RoleUser,
+	}
+
+	cache.users[cachedUser.ID] = cachedUser
+
+	service := user.NewService(
+		repo,
+		nil,
+		user.WithCache(cache, time.Minute),
+	)
+
+	found, err := service.GetUser(ctx, cachedUser.ID)
+	if err != nil {
+		t.Fatalf("GetUser returned error: %v", err)
+	}
+
+	if found.Email != cachedUser.Email {
+		t.Fatalf("expected email %q, got %q", cachedUser.Email, found.Email)
+	}
+
+	if repo.findByIDCalls != 0 {
+		t.Fatalf("expected repo not to be called, got %d calls", repo.findByIDCalls)
+	}
+}
+
+func TestService_GetUser_CacheMissLoadsFromRepoAndStoresCache(t *testing.T) {
+	ctx := t.Context()
+
+	repo := newFakeRepository()
+	cache := newFakeUserCache()
+
+	created, err := repo.Create(ctx, user.User{
+		Name:  "Alex",
+		Email: "alex@example.com",
+		Age:   25,
+		Role:  user.RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	service := user.NewService(
+		repo,
+		nil,
+		user.WithCache(cache, time.Minute),
+	)
+
+	found, err := service.GetUser(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("GetUser returned error: %v", err)
+	}
+
+	if found.ID != created.ID {
+		t.Fatalf("expected user id %d, got %d", created.ID, found.ID)
+	}
+
+	if cache.setCalls != 1 {
+		t.Fatalf("expected cache set calls 1, got %d", cache.setCalls)
+	}
+
+	cached, ok := cache.users[created.ID]
+	if !ok {
+		t.Fatal("expected user to be stored in cache")
+	}
+
+	if cached.Email != created.Email {
+		t.Fatalf("expected cached email %q, got %q", created.Email, cached.Email)
+	}
+}
+
+func TestService_GetUser_CacheErrorFallsBackToRepo(t *testing.T) {
+	ctx := t.Context()
+
+	repo := newFakeRepository()
+	cache := newFakeUserCache()
+	cache.getErr = errors.New("redis unavailable")
+
+	created, err := repo.Create(ctx, user.User{
+		Name:  "Alex",
+		Email: "alex@example.com",
+		Age:   25,
+		Role:  user.RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	service := user.NewService(
+		repo,
+		nil,
+		user.WithCache(cache, time.Minute),
+	)
+
+	found, err := service.GetUser(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("GetUser returned error: %v", err)
+	}
+
+	if found.ID != created.ID {
+		t.Fatalf("expected user id %d, got %d", created.ID, found.ID)
+	}
+}
+
+func TestService_UpdateUser_UpdatesCache(t *testing.T) {
+	ctx := t.Context()
+
+	repo := newFakeRepository()
+	cache := newFakeUserCache()
+
+	created, err := repo.Create(ctx, user.User{
+		Name:  "Alex",
+		Email: "alex@example.com",
+		Age:   25,
+		Role:  user.RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	service := user.NewService(
+		repo,
+		nil,
+		user.WithCache(cache, time.Minute),
+	)
+
+	updated, err := service.UpdateUser(ctx, created.ID, user.UpdateUserInput{
+		Name:  "Updated Alex",
+		Email: "updated@example.com",
+		Age:   26,
+	})
+	if err != nil {
+		t.Fatalf("UpdateUser returned error: %v", err)
+	}
+
+	cached, ok := cache.users[created.ID]
+	if !ok {
+		t.Fatal("expected updated user to be cached")
+	}
+
+	if cached.Email != updated.Email {
+		t.Fatalf("expected cached email %q, got %q", updated.Email, cached.Email)
+	}
+}
+
+func TestService_DeleteUser_DeletesCache(t *testing.T) {
+	ctx := t.Context()
+
+	repo := newFakeRepository()
+	cache := newFakeUserCache()
+
+	created, err := repo.Create(ctx, user.User{
+		Name:  "Alex",
+		Email: "alex@example.com",
+		Age:   25,
+		Role:  user.RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	cache.users[created.ID] = created
+
+	service := user.NewService(
+		repo,
+		nil,
+		user.WithCache(cache, time.Minute),
+	)
+
+	if err := service.DeleteUser(ctx, created.ID); err != nil {
+		t.Fatalf("DeleteUser returned error: %v", err)
+	}
+
+	if _, ok := cache.users[created.ID]; ok {
+		t.Fatal("expected user to be deleted from cache")
 	}
 }

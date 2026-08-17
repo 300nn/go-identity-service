@@ -7,8 +7,16 @@ import (
 )
 
 func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
+	skipSuccessPaths := map[string]struct{}{
+		"/health":  {},
+		"/ready":   {},
+		"/ping":    {},
+		"/info":    {},
+		"/version": {},
+	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 			start := time.Now()
 
 			rw := newResponseWriter(w)
@@ -19,6 +27,10 @@ func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
 			requestID := GetRequestID(r.Context())
 
 			status := rw.Status()
+
+			if _, ok := skipSuccessPaths[r.URL.Path]; ok && status < 400 {
+				return
+			}
 
 			args := []any{
 				"request_id", requestID,

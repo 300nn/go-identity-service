@@ -55,7 +55,7 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, dbPool, redisClient)
 
-	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware)
+	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware, redisClient, cfg)
 
 	handler := middleware.Chain(
 		mux,
@@ -145,9 +145,15 @@ func initUserModule(
 	userRepo user.Repository,
 	validator *validation.Validator,
 	ware *auth.MiddleWare,
+	redisClient *redis.Client,
+	cfg *config.Config,
 ) {
 	txFactory := user.NewPostgresTxRepositoryFactory(pool)
-	userService := user.NewService(userRepo, txFactory)
+	userCache := user.NewRedisCache(redisClient, "go-crud")
+	userService := user.NewService(
+		userRepo,
+		txFactory,
+		user.WithCache(userCache, cfg.Cache.UserTTL))
 	userHandler := user.NewHandler(userService, logger, validator)
 	userHandler.RegisterRouts(
 		mux,

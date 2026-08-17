@@ -197,6 +197,13 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 }
 
 func clientIP(r *http.Request) string {
+	if ip := r.Header.Get("X-Forwarded-For"); ip != "" {
+		return strings.Split(ip, ",")[0]
+	}
+	if ip := r.Header.Get("X-Real-IP"); ip != "" {
+		return ip
+	}
+
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err == nil {
 		return host

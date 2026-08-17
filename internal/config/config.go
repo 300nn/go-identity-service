@@ -2,6 +2,7 @@ package config
 
 import (
 	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/user"
 	"errors"
 	"fmt"
 	"net"
@@ -25,6 +26,7 @@ type Config struct {
 	Auth      AuthConfig           `yaml:"auth" env-prefix:"AUTH_"`
 	RateLimit auth.RateLimitConfig `yaml:"rate_limit" env-prefix:"RATE_LIMIT_"`
 	Redis     RedisConfig          `yaml:"redis" env-prefix:"REDIS_"`
+	Cache     user.CacheConfig     `yaml:"cache" env-prefix:"CACHE_"`
 }
 
 type HTTPConfig struct {

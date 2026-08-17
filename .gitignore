@@ -11,5 +11,7 @@
 *.so
 *.dylib
 
+*.py
+*.txt
 go.work
 go.work.sum

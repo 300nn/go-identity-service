@@ -16,6 +16,8 @@ type FakeRepository struct {
 	users    map[int64]user.User
 	profiles map[int64]user.Profile
 	events   map[int64]user.Event
+
+	findByIDCalls int
 }
 
 func newFakeRepository() *FakeRepository {
@@ -50,6 +52,7 @@ func (r *FakeRepository) Create(ctx context.Context, usr user.User) (user.User, 
 }
 
 func (r *FakeRepository) FindByID(ctx context.Context, id int64) (user.User, error) {
+	r.findByIDCalls++
 	found, ok := r.users[id]
 	if !ok {
 		return user.User{}, user.ErrUserNotFound
