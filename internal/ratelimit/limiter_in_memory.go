@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -30,9 +31,9 @@ func NewLimiterWithClock(now func() time.Time) *Limiter {
 	}
 }
 
-func (l *Limiter) Allow(key string, limit int, window time.Duration) bool {
+func (l *Limiter) Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error) {
 	if limit <= 0 {
-		return true
+		return true, nil
 	}
 
 	now := l.now()
@@ -46,15 +47,15 @@ func (l *Limiter) Allow(key string, limit int, window time.Duration) bool {
 			count:   1,
 			resetAt: now.Add(window),
 		}
-		return true
+		return true, nil
 	}
 
 	if current.count >= limit {
-		return false
+		return false, nil
 	}
 
 	current.count++
 	l.entries[key] = current
 
-	return true
+	return true, nil
 }

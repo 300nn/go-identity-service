@@ -27,5 +27,11 @@ auth:
   jwt_secret: "local-dev-secret-change-me-please-32"
   access_token_ttl: 15m
 
+redis:
+  host: "localhost"
+  port: 16379
+  password: ""
+  db: 0
+
 log:
   level: "info"

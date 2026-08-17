@@ -24,6 +24,7 @@ type Config struct {
 	App       AppConfig            `yaml:"app" env-prefix:"APP_"`
 	Auth      AuthConfig           `yaml:"auth" env-prefix:"AUTH_"`
 	RateLimit auth.RateLimitConfig `yaml:"rate_limit" env-prefix:"RATE_LIMIT_"`
+	Redis     RedisConfig          `yaml:"redis" env-prefix:"REDIS_"`
 }
 
 type HTTPConfig struct {
@@ -65,6 +66,17 @@ type AuthConfig struct {
 	JWTSecret       string        `yaml:"jwt_secret" env:"JWT_SECRET" env-default:"local-dev-secret-change-me-please-32" validate:"required,min=32"`
 	AccessTokenTTL  time.Duration `yaml:"access_token_ttl" env:"ACCESS_TOKEN_TTL" env-default:"15m" validate:"gt=0"`
 	RefreshTokenTTL time.Duration `yaml:"refresh_token_ttl" env:"REFRESH_TOKEN_TTL" env-default:"720h" validate:"gt=0"`
+}
+
+type RedisConfig struct {
+	Host     string `yaml:"host" env:"HOST" env-default:"localhost" validate:"required"`
+	Port     int    `yaml:"port" env:"PORT" env-default:"6379" validate:"gte=1,lte=65535"`
+	Password string `yaml:"password" env:"PASSWORD"`
+	DB       int    `yaml:"db" env:"DB" env-default:"0" validate:"gte=0"`
+}
+
+func (r RedisConfig) Address() string {
+	return net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
 }
 
 func (d *DatabaseConfig) DatabaseUrl() string {

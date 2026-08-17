@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"CrudTutorialProject/internal/ratelimit"
 	"CrudTutorialProject/internal/response"
 	"CrudTutorialProject/internal/validation"
 	"log/slog"
@@ -22,7 +21,7 @@ func NewHandler(
 	service *Service,
 	logger *slog.Logger,
 	validator *validation.Validator,
-	limiter *ratelimit.Limiter,
+	limiter RateLimiter,
 	rateLimitConfig RateLimitConfig,
 ) *Handler {
 	return &Handler{
@@ -65,7 +64,13 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if h.limiter != nil {
 		key := "auth:register:ip:" + clientIP(r)
-		if !h.limiter.Allow(key, h.rateLimitConfig.RegisterLimit, h.rateLimitConfig.RegisterWindow) {
+		allowed, err := h.limiter.Allow(r.Context(), key, h.rateLimitConfig.RegisterLimit, h.rateLimitConfig.RegisterWindow)
+		if err != nil {
+			response.HandleError(w, h.logger, err)
+			return
+		}
+
+		if !allowed {
 			h.rejectRateLimited(w)
 			return
 		}
@@ -94,9 +99,16 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if h.limiter != nil {
 		email := strings.TrimSpace(strings.ToLower(req.Email))
 		ip := clientIP(r)
-		key := "auth:login:ip:" + email + ":" + ip
+		key := "auth:login:email_ip:" + email + ":" + ip
 
-		if !h.limiter.Allow(key, h.rateLimitConfig.LoginLimit, h.rateLimitConfig.LoginWindow) {
+		allowed, err := h.limiter.Allow(r.Context(), key, h.rateLimitConfig.LoginLimit, h.rateLimitConfig.LoginWindow)
+
+		if err != nil {
+			response.HandleError(w, h.logger, err)
+			return
+		}
+
+		if !allowed {
 			h.rejectRateLimited(w)
 			return
 		}
@@ -126,11 +138,12 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if h.limiter != nil {
 		key := "auth:refresh:ip:" + clientIP(r)
 
-		if !h.limiter.Allow(
-			key,
-			h.rateLimitConfig.RefreshLimit,
-			h.rateLimitConfig.RefreshWindow,
-		) {
+		allowed, err := h.limiter.Allow(r.Context(), key, h.rateLimitConfig.RefreshLimit, h.rateLimitConfig.RefreshWindow)
+		if err != nil {
+			response.HandleError(w, h.logger, err)
+			return
+		}
+		if !allowed {
 			h.rejectRateLimited(w)
 			return
 		}

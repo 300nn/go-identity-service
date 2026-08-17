@@ -17,6 +17,18 @@ services:
       retries: 10
       start_period: 5s
 
+  redis:
+    image: redis:8-alpine
+    container_name: go-crud-redis
+    ports:
+      - "16379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+
   migrate:
     build:
       context: .
@@ -71,6 +83,10 @@ services:
       AUTH_ACCESS_TOKEN_TTL: 15m
       AUTH_REFRESH_TOKEN_TTL: 720h
 
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+
       LOG_LEVEL: info
     ports:
       - "8080:8080"
@@ -85,6 +101,8 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:

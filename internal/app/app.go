@@ -7,6 +7,7 @@ import (
 	"CrudTutorialProject/internal/middleware"
 	"CrudTutorialProject/internal/postgres"
 	"CrudTutorialProject/internal/ratelimit"
+	"CrudTutorialProject/internal/redisclient"
 	"CrudTutorialProject/internal/response"
 	"CrudTutorialProject/internal/user"
 	"CrudTutorialProject/internal/validation"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
@@ -31,8 +33,19 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-
 	defer dbPool.Close()
+
+	redisClient, err := redisclient.New(ctx, cfg.Redis)
+
+	if err != nil {
+		return err
+	}
+	defer func(redisClient *redis.Client) {
+		err := redisClient.Close()
+		if err != nil {
+			log.Error("closing redis connection", slog.Any("error", err))
+		}
+	}(redisClient)
 
 	userRepo := user.NewPostgresRepository(dbPool)
 
@@ -40,7 +53,7 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	initHealthModule(mux, dbPool, log, &shuttingDown, cfg)
 
-	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, dbPool)
+	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, dbPool, redisClient)
 
 	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware)
 
@@ -152,7 +165,8 @@ func initAuthModule(
 	log *slog.Logger,
 	userRepo user.Repository,
 	validator *validation.Validator,
-	db *pgxpool.Pool) *auth.MiddleWare {
+	db *pgxpool.Pool,
+	redisClient *redis.Client) *auth.MiddleWare {
 
 	tokenManager := auth.NewTokenManager(
 		cfg.Auth.JWTSecret,
@@ -176,7 +190,7 @@ func initAuthModule(
 		cfg.Auth.RefreshTokenTTL,
 	)
 
-	limiter := ratelimit.NewLimiter()
+	limiter := ratelimit.NewRedisLimiter(redisClient, "go-crud")
 
 	authHandler := auth.NewHandler(authService, log, validator, limiter, cfg.RateLimit)
 	authMiddleware := auth.NewMiddleWare(tokenManager)

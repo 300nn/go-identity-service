@@ -1,9 +1,12 @@
 package auth
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type RateLimiter interface {
-	Allow(key string, limit int, window time.Duration) bool
+	Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error)
 }
 
 type RateLimitConfig struct {
