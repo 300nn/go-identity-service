@@ -6,6 +6,7 @@ import (
 	"CrudTutorialProject/internal/httpserver"
 	"CrudTutorialProject/internal/middleware"
 	"CrudTutorialProject/internal/postgres"
+	"CrudTutorialProject/internal/ratelimit"
 	"CrudTutorialProject/internal/response"
 	"CrudTutorialProject/internal/user"
 	"CrudTutorialProject/internal/validation"
@@ -175,7 +176,9 @@ func initAuthModule(
 		cfg.Auth.RefreshTokenTTL,
 	)
 
-	authHandler := auth.NewHandler(authService, log, validator)
+	limiter := ratelimit.NewLimiter()
+
+	authHandler := auth.NewHandler(authService, log, validator, limiter, cfg.RateLimit)
 	authMiddleware := auth.NewMiddleWare(tokenManager)
 
 	authHandler.RegisterRoutes(mux, authMiddleware)

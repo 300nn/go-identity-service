@@ -1,6 +1,7 @@
 package config
 
 import (
+	"CrudTutorialProject/internal/auth"
 	"errors"
 	"fmt"
 	"net"
@@ -17,11 +18,12 @@ var configValidator = validator.New(
 	validator.WithRequiredStructEnabled())
 
 type Config struct {
-	HTTP     HTTPConfig     `yaml:"http" env-prefix:"HTTP_"`
-	Database DatabaseConfig `yaml:"database" env-prefix:"DATABASE_"`
-	Log      LogConfig      `yaml:"log" env-prefix:"LOG_"`
-	App      AppConfig      `yaml:"app" env-prefix:"APP_"`
-	Auth     AuthConfig     `yaml:"auth" env-prefix:"AUTH_"`
+	HTTP      HTTPConfig           `yaml:"http" env-prefix:"HTTP_"`
+	Database  DatabaseConfig       `yaml:"database" env-prefix:"DATABASE_"`
+	Log       LogConfig            `yaml:"log" env-prefix:"LOG_"`
+	App       AppConfig            `yaml:"app" env-prefix:"APP_"`
+	Auth      AuthConfig           `yaml:"auth" env-prefix:"AUTH_"`
+	RateLimit auth.RateLimitConfig `yaml:"rate_limit" env-prefix:"RATE_LIMIT_"`
 }
 
 type HTTPConfig struct {
@@ -101,7 +103,7 @@ func Load(filename string) (*Config, error) {
 		return nil, err
 	}
 
-	// Валидация, прописаная в Config (validate)
+	// Валидация, прописанная в Config (validate)
 	if err := configValidator.Struct(&cfg); err != nil {
 		return nil, fmt.Errorf("validate config fields: %w", err)
 	}

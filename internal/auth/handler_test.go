@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/ratelimit"
 	"CrudTutorialProject/internal/validation"
 	"encoding/json"
 	"io"
@@ -40,7 +41,17 @@ func newTestAuthHTTPApp(t *testing.T) *testAuthHTTPApp {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	validator := validation.New()
 
-	authHandler := auth.NewHandler(service, log, validator)
+	limiter := ratelimit.NewLimiter()
+	limiterConfig := auth.RateLimitConfig{
+		LoginLimit:     100,
+		LoginWindow:    time.Minute,
+		RegisterLimit:  100,
+		RegisterWindow: time.Minute,
+		RefreshLimit:   100,
+		RefreshWindow:  time.Minute,
+	}
+
+	authHandler := auth.NewHandler(service, log, validator, limiter, limiterConfig)
 	authMiddleware := auth.NewMiddleWare(tokens)
 
 	mux := http.NewServeMux()

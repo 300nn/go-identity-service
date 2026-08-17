@@ -1,23 +1,36 @@
 package auth
 
 import (
+	"CrudTutorialProject/internal/ratelimit"
 	"CrudTutorialProject/internal/response"
 	"CrudTutorialProject/internal/validation"
 	"log/slog"
+	"net"
 	"net/http"
+	"strings"
 )
 
 type Handler struct {
-	service   *Service
-	logger    *slog.Logger
-	validator *validation.Validator
+	service         *Service
+	logger          *slog.Logger
+	validator       *validation.Validator
+	limiter         RateLimiter
+	rateLimitConfig RateLimitConfig
 }
 
-func NewHandler(service *Service, logger *slog.Logger, validator *validation.Validator) *Handler {
+func NewHandler(
+	service *Service,
+	logger *slog.Logger,
+	validator *validation.Validator,
+	limiter *ratelimit.Limiter,
+	rateLimitConfig RateLimitConfig,
+) *Handler {
 	return &Handler{
-		service:   service,
-		logger:    logger,
-		validator: validator,
+		service:         service,
+		logger:          logger,
+		validator:       validator,
+		limiter:         limiter,
+		rateLimitConfig: rateLimitConfig,
 	}
 }
 
@@ -30,6 +43,15 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMiddleware *MiddleWare)
 	mux.Handle("GET /auth/me", authMiddleware.RequireAuth(http.HandlerFunc(h.Me)))
 }
 
+func (h *Handler) rejectRateLimited(w http.ResponseWriter) {
+	response.SendError(
+		w,
+		http.StatusTooManyRequests,
+		"rate_limited",
+		"Too many requests",
+	)
+}
+
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	req, ok := response.DecodeJSON[RegisterRequest](w, r)
 	if !ok {
@@ -39,6 +61,14 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if err := h.validator.Struct(req); err != nil {
 		response.HandleError(w, h.logger, err)
 		return
+	}
+
+	if h.limiter != nil {
+		key := "auth:register:ip:" + clientIP(r)
+		if !h.limiter.Allow(key, h.rateLimitConfig.RegisterLimit, h.rateLimitConfig.RegisterWindow) {
+			h.rejectRateLimited(w)
+			return
+		}
 	}
 
 	result, err := h.service.Register(r.Context(), req)
@@ -61,6 +91,17 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.limiter != nil {
+		email := strings.TrimSpace(strings.ToLower(req.Email))
+		ip := clientIP(r)
+		key := "auth:login:ip:" + email + ":" + ip
+
+		if !h.limiter.Allow(key, h.rateLimitConfig.LoginLimit, h.rateLimitConfig.LoginWindow) {
+			h.rejectRateLimited(w)
+			return
+		}
+	}
+
 	result, err := h.service.Login(r.Context(), req)
 
 	if err != nil {
@@ -80,6 +121,19 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if err := h.validator.Struct(req); err != nil {
 		response.HandleError(w, h.logger, err)
 		return
+	}
+
+	if h.limiter != nil {
+		key := "auth:refresh:ip:" + clientIP(r)
+
+		if !h.limiter.Allow(
+			key,
+			h.rateLimitConfig.RefreshLimit,
+			h.rateLimitConfig.RefreshWindow,
+		) {
+			h.rejectRateLimited(w)
+			return
+		}
 	}
 
 	result, err := h.service.Refresh(r.Context(), req)
@@ -127,4 +181,17 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, result)
+}
+
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return host
+	}
+
+	if r.RemoteAddr != "" {
+		return r.RemoteAddr
+	}
+
+	return "unknown"
 }
