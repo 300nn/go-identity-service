@@ -1,11 +1,23 @@
 package testutils
 
 import (
+	"context"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+)
+
+var (
+	redisOnce sync.Once
+	redisMu   sync.Mutex
+
+	redisClient    *redis.Client
+	redisContainer testcontainers.Container
+	redisErr       error
 )
 
 func NewTestRedisClient(t *testing.T) *redis.Client {
@@ -15,53 +27,81 @@ func NewTestRedisClient(t *testing.T) *redis.Client {
 		t.Skip("skipping redis test in short mode")
 	}
 
-	ctx := t.Context()
-
-	req := testcontainers.ContainerRequest{
-		Image:        "redis:8-alpine",
-		ExposedPorts: []string{"6379/tcp"},
-		WaitingFor:   wait.ForLog("Ready to accept connections"),
-	}
-
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-
-	if err != nil {
-		t.Fatalf("failed to start redis container: %v", err)
-	}
+	redisMu.Lock()
 
 	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(container); err != nil {
-			t.Logf("failed to terminate redis container: %v", err)
+		if redisClient != nil {
+			cleanRedis(t, redisClient)
 		}
+		redisMu.Unlock()
 	})
 
-	host, err := container.Host(ctx)
+	client := sharedRedisClient(t)
 
-	if err != nil {
-		t.Fatalf("failed to get redis host: %v", err)
-	}
-
-	port, err := container.MappedPort(ctx, "6379")
-	if err != nil {
-		t.Fatalf("get redis mapped port: %v", err)
-	}
-
-	client := redis.NewClient(&redis.Options{
-		Addr: host + ":" + port.Port(),
-	})
-
-	t.Cleanup(func() {
-		if err := client.Close(); err != nil {
-			t.Logf("failed to close redis client: %v", err)
-		}
-	})
-
-	if err := client.Ping(ctx).Err(); err != nil {
-		t.Fatalf("redis ping: %v", err)
-	}
+	cleanRedis(t, client)
 
 	return client
+}
+
+func sharedRedisClient(t *testing.T) *redis.Client {
+	t.Helper()
+
+	redisOnce.Do(func() {
+		ctx := context.Background()
+
+		req := testcontainers.ContainerRequest{
+			Image:        "redis:8-alpine",
+			ExposedPorts: []string{"6379/tcp"},
+			WaitingFor:   wait.ForLog("Ready to accept connections"),
+		}
+
+		redisContainer, redisErr = testcontainers.GenericContainer(
+			ctx,
+			testcontainers.GenericContainerRequest{
+				ContainerRequest: req,
+				Started:          true,
+			},
+		)
+		if redisErr != nil {
+			return
+		}
+
+		host, err := redisContainer.Host(ctx)
+		if err != nil {
+			redisErr = err
+			return
+		}
+
+		port, err := redisContainer.MappedPort(ctx, "6379")
+		if err != nil {
+			redisErr = err
+			return
+		}
+
+		redisClient = redis.NewClient(&redis.Options{
+			Addr: host + ":" + port.Port(),
+		})
+
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			redisErr = err
+			return
+		}
+	})
+
+	if redisErr != nil {
+		t.Fatalf("start shared redis: %v", redisErr)
+	}
+
+	return redisClient
+}
+
+func cleanRedis(t *testing.T, client *redis.Client) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := client.FlushDB(ctx).Err(); err != nil {
+		t.Fatalf("clean redis: %v", err)
+	}
 }
