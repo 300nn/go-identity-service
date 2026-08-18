@@ -3,9 +3,10 @@ package validation
 import (
 	"CrudTutorialProject/internal/apperror"
 	"errors"
-	"github.com/go-playground/validator/v10"
 	"reflect"
 	"strings"
+
+	"github.com/go-playground/validator/v10"
 )
 
 type Validator struct {

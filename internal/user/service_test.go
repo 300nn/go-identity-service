@@ -2,19 +2,39 @@ package user_test
 
 import (
 	"CrudTutorialProject/internal/apperror"
+	"CrudTutorialProject/internal/auth"
 	"CrudTutorialProject/internal/user"
 	"errors"
 	"testing"
 	"time"
 )
 
+type testApp struct {
+	repo    *FakeRepository
+	service *user.Service
+	hasher  user.Hasher
+}
+
+func newTestApp(t *testing.T) *testApp {
+	t.Helper()
+
+	hasher := auth.NewPasswordHasher()
+	repo := newFakeRepository()
+	service := user.NewService(repo, nil, hasher)
+
+	return &testApp{
+		repo:    repo,
+		service: service,
+		hasher:  hasher,
+	}
+}
+
 func TestService_CreateUser_Success(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
-	service := user.NewService(repo, nil)
+	app := newTestApp(t)
 
-	got, err := service.CreateUser(
+	got, err := app.service.CreateUser(
 		ctx,
 		user.CreateUserInput{
 			Email: "a@asdf.ru",
@@ -55,10 +75,9 @@ func TestService_CreateUser_Success(t *testing.T) {
 func TestService_CreateUser_DuplicateEmail(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
-	service := user.NewService(repo, nil)
+	app := newTestApp(t)
 
-	_, err := service.CreateUser(ctx, user.CreateUserInput{
+	_, err := app.service.CreateUser(ctx, user.CreateUserInput{
 		Name:  "Alex",
 		Email: "alex@example.com",
 		Age:   25,
@@ -67,7 +86,7 @@ func TestService_CreateUser_DuplicateEmail(t *testing.T) {
 		t.Fatalf("first CreateUser returned error: %v", err)
 	}
 
-	_, err = service.CreateUser(ctx, user.CreateUserInput{
+	_, err = app.service.CreateUser(ctx, user.CreateUserInput{
 		Name:  "Another Alex",
 		Email: " Alex@Example.com ",
 		Age:   30,
@@ -142,10 +161,9 @@ func TestService_CreateUser_Validation(t *testing.T) {
 
 			ctx := t.Context()
 
-			repo := newFakeRepository()
-			service := user.NewService(repo, nil)
+			app := newTestApp(t)
 
-			_, err := service.CreateUser(ctx, tt.input)
+			_, err := app.service.CreateUser(ctx, tt.input)
 			if err == nil {
 				t.Fatal("expected validation error, got nil")
 			}
@@ -156,10 +174,9 @@ func TestService_CreateUser_Validation(t *testing.T) {
 func TestService_CreateUser_ValidationFields(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
-	service := user.NewService(repo, nil)
+	app := newTestApp(t)
 
-	_, err := service.CreateUser(ctx, user.CreateUserInput{
+	_, err := app.service.CreateUser(ctx, user.CreateUserInput{
 		Name:  "",
 		Email: "wrong-email",
 		Age:   -1,
@@ -189,10 +206,9 @@ func TestService_CreateUser_ValidationFields(t *testing.T) {
 func TestService_GetUser_Success(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
-	service := user.NewService(repo, nil)
+	app := newTestApp(t)
 
-	created, err := repo.Create(ctx, user.User{
+	created, err := app.repo.Create(ctx, user.User{
 		Name:  "Alex",
 		Email: "alex@example.com",
 		Age:   25,
@@ -201,7 +217,7 @@ func TestService_GetUser_Success(t *testing.T) {
 		t.Fatalf("repo.Create returned error: %v", err)
 	}
 
-	got, err := service.GetUser(ctx, created.ID)
+	got, err := app.service.GetUser(ctx, created.ID)
 	if err != nil {
 		t.Fatalf("GetUser returned error: %v", err)
 	}
@@ -214,10 +230,9 @@ func TestService_GetUser_Success(t *testing.T) {
 func TestService_GetUser_NotFound(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
-	service := user.NewService(repo, nil)
+	app := newTestApp(t)
 
-	_, err := service.GetUser(ctx, 999)
+	_, err := app.service.GetUser(ctx, 999)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -230,10 +245,9 @@ func TestService_GetUser_NotFound(t *testing.T) {
 func TestService_GetUser_InvalidID(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
-	service := user.NewService(repo, nil)
+	app := newTestApp(t)
 
-	_, err := service.GetUser(ctx, 0)
+	_, err := app.service.GetUser(ctx, 0)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -246,28 +260,27 @@ func TestService_GetUser_InvalidID(t *testing.T) {
 func TestService_ListUsers(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
-	service := user.NewService(repo, nil)
+	app := newTestApp(t)
 
-	_, _ = repo.Create(ctx, user.User{
+	_, _ = app.repo.Create(ctx, user.User{
 		Name:  "Alex",
 		Email: "alex@example.com",
 		Age:   25,
 	})
 
-	_, _ = repo.Create(ctx, user.User{
+	_, _ = app.repo.Create(ctx, user.User{
 		Name:  "Bob",
 		Email: "bob@example.com",
 		Age:   30,
 	})
 
-	_, _ = repo.Create(ctx, user.User{
+	_, _ = app.repo.Create(ctx, user.User{
 		Name:  "Alice",
 		Email: "alice@user_test.com",
 		Age:   22,
 	})
 
-	result, err := service.ListUsers(ctx, user.ListUsersInput{
+	result, err := app.service.ListUsers(ctx, user.ListUsersInput{
 		Limit:  10,
 		Offset: 0,
 		Email:  "example",
@@ -293,7 +306,7 @@ func TestService_ListUsers(t *testing.T) {
 func TestService_GetUser_ReturnsFromCache(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
+	app := newTestApp(t)
 	cache := newFakeUserCache()
 
 	cachedUser := user.User{
@@ -307,8 +320,9 @@ func TestService_GetUser_ReturnsFromCache(t *testing.T) {
 	cache.users[cachedUser.ID] = cachedUser
 
 	service := user.NewService(
-		repo,
+		app.repo,
 		nil,
+		app.hasher,
 		user.WithCache(cache, time.Minute),
 	)
 
@@ -321,18 +335,18 @@ func TestService_GetUser_ReturnsFromCache(t *testing.T) {
 		t.Fatalf("expected email %q, got %q", cachedUser.Email, found.Email)
 	}
 
-	if repo.findByIDCalls != 0 {
-		t.Fatalf("expected repo not to be called, got %d calls", repo.findByIDCalls)
+	if app.repo.findByIDCalls != 0 {
+		t.Fatalf("expected repo not to be called, got %d calls", app.repo.findByIDCalls)
 	}
 }
 
 func TestService_GetUser_CacheMissLoadsFromRepoAndStoresCache(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
+	app := newTestApp(t)
 	cache := newFakeUserCache()
 
-	created, err := repo.Create(ctx, user.User{
+	created, err := app.repo.Create(ctx, user.User{
 		Name:  "Alex",
 		Email: "alex@example.com",
 		Age:   25,
@@ -343,8 +357,9 @@ func TestService_GetUser_CacheMissLoadsFromRepoAndStoresCache(t *testing.T) {
 	}
 
 	service := user.NewService(
-		repo,
+		app.repo,
 		nil,
+		app.hasher,
 		user.WithCache(cache, time.Minute),
 	)
 
@@ -374,11 +389,11 @@ func TestService_GetUser_CacheMissLoadsFromRepoAndStoresCache(t *testing.T) {
 func TestService_GetUser_CacheErrorFallsBackToRepo(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
+	app := newTestApp(t)
 	cache := newFakeUserCache()
 	cache.getErr = errors.New("redis unavailable")
 
-	created, err := repo.Create(ctx, user.User{
+	created, err := app.repo.Create(ctx, user.User{
 		Name:  "Alex",
 		Email: "alex@example.com",
 		Age:   25,
@@ -389,8 +404,9 @@ func TestService_GetUser_CacheErrorFallsBackToRepo(t *testing.T) {
 	}
 
 	service := user.NewService(
-		repo,
+		app.repo,
 		nil,
+		app.hasher,
 		user.WithCache(cache, time.Minute),
 	)
 
@@ -407,10 +423,10 @@ func TestService_GetUser_CacheErrorFallsBackToRepo(t *testing.T) {
 func TestService_UpdateUser_UpdatesCache(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
+	app := newTestApp(t)
 	cache := newFakeUserCache()
 
-	created, err := repo.Create(ctx, user.User{
+	created, err := app.repo.Create(ctx, user.User{
 		Name:  "Alex",
 		Email: "alex@example.com",
 		Age:   25,
@@ -421,8 +437,9 @@ func TestService_UpdateUser_UpdatesCache(t *testing.T) {
 	}
 
 	service := user.NewService(
-		repo,
+		app.repo,
 		nil,
+		app.hasher,
 		user.WithCache(cache, time.Minute),
 	)
 
@@ -448,10 +465,10 @@ func TestService_UpdateUser_UpdatesCache(t *testing.T) {
 func TestService_DeleteUser_DeletesCache(t *testing.T) {
 	ctx := t.Context()
 
-	repo := newFakeRepository()
+	app := newTestApp(t)
 	cache := newFakeUserCache()
 
-	created, err := repo.Create(ctx, user.User{
+	created, err := app.repo.Create(ctx, user.User{
 		Name:  "Alex",
 		Email: "alex@example.com",
 		Age:   25,
@@ -464,8 +481,9 @@ func TestService_DeleteUser_DeletesCache(t *testing.T) {
 	cache.users[created.ID] = created
 
 	service := user.NewService(
-		repo,
+		app.repo,
 		nil,
+		app.hasher,
 		user.WithCache(cache, time.Minute),
 	)
 

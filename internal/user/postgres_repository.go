@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"strings"
 )
 
 type DBTX interface {
@@ -178,6 +179,9 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListUsersFilter) (
 		}
 
 		users = append(users, user)
+	}
+	if err := rows.Err(); err != nil {
+		return ListUsersResult{}, fmt.Errorf("iterate user rows: %w", err)
 	}
 	return ListUsersResult{
 		Users: users,

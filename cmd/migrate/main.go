@@ -20,7 +20,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := sql.Open("pgx", cfg.DatabaseUrlWithoutSSL())
+	db, err := sql.Open("pgx", cfg.DatabaseUrlWithSSL())
 	if err != nil {
 		logger.Error("open database", slog.Any("error", err))
 		os.Exit(1)

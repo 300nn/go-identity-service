@@ -6,7 +6,7 @@ import (
 
 type MiddlewareFunc func(http.Handler) http.Handler
 
-func (h *Handler) RegisterRouts(
+func (h *Handler) RegisterRoutes(
 	mux *http.ServeMux,
 	requireAdmin MiddlewareFunc,
 	requireSelfOrAdmin MiddlewareFunc,

@@ -115,6 +115,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (AuthResponse, er
 
 	found, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
+		s.hasher.Compare("$2a$12$e80yq9gIe67Cqg4a0d9I6.L971nJ9.xP7pB/64QZz.7iG8JgP1G2m", req.Password)
 		if errors.Is(err, user.ErrUserNotFound) {
 			return AuthResponse{}, NewInvalidCredentialsError()
 		}

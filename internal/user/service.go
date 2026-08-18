@@ -13,17 +13,23 @@ import (
 type Service struct {
 	repo      Repository
 	txFactory TxRepositoryFactory
+	hasher    Hasher
 
 	cache    Cache
 	cacheTTL time.Duration
 }
 
+type Hasher interface {
+	Hash(string) (string, error)
+}
+
 type ServiceOption func(*Service)
 
-func NewService(repo Repository, txFactory TxRepositoryFactory, opts ...ServiceOption) *Service {
+func NewService(repo Repository, txFactory TxRepositoryFactory, hasher Hasher, opts ...ServiceOption) *Service {
 	service := &Service{
 		repo:      repo,
 		txFactory: txFactory,
+		hasher:    hasher,
 	}
 
 	for _, opt := range opts {
@@ -53,9 +59,10 @@ type ListUsersOutput struct {
 }
 
 type CreateUserInput struct {
-	Name  string
-	Email string
-	Age   int
+	Name     string
+	Email    string
+	Age      int
+	Password string
 }
 
 type UpdateUserInput struct {
@@ -65,10 +72,11 @@ type UpdateUserInput struct {
 }
 
 type CreateUserWithProfileInput struct {
-	Name  string
-	Email string
-	Age   int
-	Bio   string
+	Name     string
+	Email    string
+	Age      int
+	Password string
+	Bio      string
 }
 
 type ProfileWithUser struct {
@@ -82,6 +90,12 @@ func (s *Service) CreateUser(ctx context.Context, request CreateUserInput) (User
 	age := request.Age
 
 	if err := validateUserInput(name, email, age); err != nil {
+		return User{}, err
+	}
+
+	password, err := s.hasher.Hash(request.Password)
+
+	if err != nil {
 		return User{}, err
 	}
 
@@ -99,7 +113,7 @@ func (s *Service) CreateUser(ctx context.Context, request CreateUserInput) (User
 		Name:         name,
 		Email:        email,
 		Age:          age,
-		PasswordHash: "old_version_of_password",
+		PasswordHash: password,
 	})
 
 	if err != nil {
@@ -271,10 +285,14 @@ func (s *Service) CreateUserWithProfile(ctx context.Context, input CreateUserWit
 	email := strings.TrimSpace(strings.ToLower(input.Email))
 	age := input.Age
 	bio := strings.TrimSpace(input.Bio)
+	passwordHash, err := s.hasher.Hash(input.Password)
+	if err != nil {
+		return ProfileWithUser{}, err
+	}
 
 	var res ProfileWithUser
 
-	err := s.txFactory.WithinTx(ctx, func(repo Repository) error {
+	err = s.txFactory.WithinTx(ctx, func(repo Repository) error {
 		exists, err := repo.ExistsByEmail(ctx, email)
 		if err != nil {
 			return fmt.Errorf("check email exists: %w", err)
@@ -288,7 +306,7 @@ func (s *Service) CreateUserWithProfile(ctx context.Context, input CreateUserWit
 			Name:         name,
 			Email:        email,
 			Age:          age,
-			PasswordHash: "old_version_of_password",
+			PasswordHash: passwordHash,
 		})
 		if err != nil {
 			if errors.Is(err, ErrEmailAlreadyExists) {

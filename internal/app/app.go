@@ -51,11 +51,13 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	validator := validation.New()
 
+	hasher := auth.NewPasswordHasher()
+
 	initHealthModule(mux, dbPool, log, &shuttingDown, cfg)
 
-	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, dbPool, redisClient)
+	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, hasher, dbPool, redisClient)
 
-	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware, redisClient, cfg)
+	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware, hasher, redisClient, cfg)
 
 	handler := middleware.Chain(
 		mux,
@@ -145,6 +147,7 @@ func initUserModule(
 	userRepo user.Repository,
 	validator *validation.Validator,
 	ware *auth.MiddleWare,
+	hasher user.Hasher,
 	redisClient *redis.Client,
 	cfg *config.Config,
 ) {
@@ -153,9 +156,10 @@ func initUserModule(
 	userService := user.NewService(
 		userRepo,
 		txFactory,
+		hasher,
 		user.WithCache(userCache, cfg.Cache.UserTTL))
 	userHandler := user.NewHandler(userService, logger, validator)
-	userHandler.RegisterRouts(
+	userHandler.RegisterRoutes(
 		mux,
 		ware.RequireRole(user.RoleAdmin),
 		ware.RequireSelfOrRole(
@@ -171,6 +175,7 @@ func initAuthModule(
 	log *slog.Logger,
 	userRepo user.Repository,
 	validator *validation.Validator,
+	hasher *auth.PasswordHasher,
 	db *pgxpool.Pool,
 	redisClient *redis.Client) *auth.MiddleWare {
 
@@ -190,7 +195,7 @@ func initAuthModule(
 		userRepo,
 		refreshStore,
 		txFactory,
-		auth.NewPasswordHasher(),
+		hasher,
 		tokenManager,
 		refreshTokens,
 		cfg.Auth.RefreshTokenTTL,

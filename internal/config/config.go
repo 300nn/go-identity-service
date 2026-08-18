@@ -30,11 +30,12 @@ type Config struct {
 }
 
 type HTTPConfig struct {
-	Host         string        `yaml:"host" env:"HOST" env-default:"0.0.0.0" validate:"required"`
-	Port         int           `yaml:"port" env:"PORT" env-default:"8080" validate:"gte=1,lte=65535"`
-	ReadTimeout  time.Duration `yaml:"read_timeout" env:"READ_TIMEOUT" env-default:"5s" validate:"gt=0"`
-	WriteTimeout time.Duration `yaml:"write_timeout" env:"WRITE_TIMEOUT" env-default:"10s" validate:"gt=0"`
-	IdleTimeout  time.Duration `yaml:"idle_timeout" env:"IDLE_TIMEOUT" env-default:"1m" validate:"gt=0"`
+	Host              string        `yaml:"host" env:"HOST" env-default:"0.0.0.0" validate:"required"`
+	Port              int           `yaml:"port" env:"PORT" env-default:"8080" validate:"gte=1,lte=65535"`
+	ReadTimeout       time.Duration `yaml:"read_timeout" env:"READ_TIMEOUT" env-default:"5s" validate:"gt=0"`
+	WriteTimeout      time.Duration `yaml:"write_timeout" env:"WRITE_TIMEOUT" env-default:"10s" validate:"gt=0"`
+	IdleTimeout       time.Duration `yaml:"idle_timeout" env:"IDLE_TIMEOUT" env-default:"1m" validate:"gt=0"`
+	ReadHeaderTimeout time.Duration `yaml:"read_header_timeout" env:"READ_HEADER_TIMEOUT" env-default:"5s" validate:"gt=0"`
 }
 
 type DatabaseConfig struct {
@@ -44,6 +45,7 @@ type DatabaseConfig struct {
 	User     string     `yaml:"user" env:"USER" env-default:"go_crud" validate:"required"`
 	Password string     `yaml:"password" env:"PASSWORD"`
 	Pool     PoolConfig `yaml:"pool" env-prefix:"POOL_"`
+	SSL      string     `yaml:"ssl" env:"SSL" env-default:"disable"`
 }
 
 type PoolConfig struct {
@@ -91,7 +93,7 @@ func (d *DatabaseConfig) DatabaseUrl() string {
 	return u.String()
 }
 
-func (d *DatabaseConfig) DatabaseUrlWithoutSSL() string {
+func (d *DatabaseConfig) DatabaseUrlWithSSL() string {
 	u := &url.URL{
 		Scheme: "postgres",
 		User:   url.UserPassword(d.User, d.Password),
@@ -99,7 +101,7 @@ func (d *DatabaseConfig) DatabaseUrlWithoutSSL() string {
 		Path:   d.Name,
 	}
 	q := u.Query()
-	q.Set("sslmode", "disable")
+	q.Set("sslmode", d.SSL)
 	u.RawQuery = q.Encode()
 
 	return u.String()

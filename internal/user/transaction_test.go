@@ -1,6 +1,7 @@
 package user_test
 
 import (
+	"CrudTutorialProject/internal/auth"
 	"CrudTutorialProject/internal/testutils"
 	"CrudTutorialProject/internal/user"
 	"context"
@@ -108,7 +109,8 @@ func TestService_CreateUserWithProfile_Commits(t *testing.T) {
 
 	repo := user.NewPostgresRepository(pool)
 	txFactory := user.NewPostgresTxRepositoryFactory(pool)
-	service := user.NewService(repo, txFactory)
+	hasher := auth.NewPasswordHasher()
+	service := user.NewService(repo, txFactory, hasher)
 
 	created, err := service.CreateUserWithProfile(ctx, user.CreateUserWithProfileInput{
 		Name:  "Alex",
@@ -176,7 +178,8 @@ func TestService_CreateUserWithProfile_DuplicateEmail(t *testing.T) {
 
 	repo := user.NewPostgresRepository(pool)
 	txFactory := user.NewPostgresTxRepositoryFactory(pool)
-	service := user.NewService(repo, txFactory)
+	hasher := auth.NewPasswordHasher()
+	service := user.NewService(repo, txFactory, hasher)
 
 	_, err := service.CreateUserWithProfile(ctx, user.CreateUserWithProfileInput{
 		Name:  "Alex",

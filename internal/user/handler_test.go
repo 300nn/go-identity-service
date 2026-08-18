@@ -1,6 +1,7 @@
 package user_test
 
 import (
+	"CrudTutorialProject/internal/auth"
 	"CrudTutorialProject/internal/response"
 	"CrudTutorialProject/internal/user"
 	"CrudTutorialProject/internal/validation"
@@ -24,7 +25,8 @@ func newTestUserApp(t *testing.T) testUserApp {
 	t.Helper()
 
 	repo := newFakeRepository()
-	service := user.NewService(repo, nil)
+	hasher := auth.NewPasswordHasher()
+	service := user.NewService(repo, nil, hasher)
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	validate := validation.New()
@@ -33,7 +35,7 @@ func newTestUserApp(t *testing.T) testUserApp {
 
 	mux := http.NewServeMux()
 
-	handler.RegisterRouts(
+	handler.RegisterRoutes(
 		mux,
 		func(next http.Handler) http.Handler {
 			return next

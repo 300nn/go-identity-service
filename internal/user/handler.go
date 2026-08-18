@@ -36,9 +36,10 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	created, err := h.service.CreateUser(r.Context(), CreateUserInput{
-		Name:  req.Name,
-		Email: req.Email,
-		Age:   req.Age,
+		Name:     req.Name,
+		Email:    req.Email,
+		Age:      req.Age,
+		Password: req.Password,
 	})
 
 	if err != nil {
@@ -167,10 +168,11 @@ func (h *Handler) CreateUserWithProfile(w http.ResponseWriter, r *http.Request) 
 	}
 
 	created, err := h.service.CreateUserWithProfile(r.Context(), CreateUserWithProfileInput{
-		Name:  req.Name,
-		Email: req.Email,
-		Age:   req.Age,
-		Bio:   req.Bio,
+		Name:     req.Name,
+		Email:    req.Email,
+		Age:      req.Age,
+		Bio:      req.Bio,
+		Password: req.Password,
 	})
 
 	if err != nil {
