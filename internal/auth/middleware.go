@@ -21,7 +21,7 @@ func NewMiddleWare(tokens *TokenManager) *MiddleWare {
 	}
 }
 
-func (m *MiddleWare) RequireSelfOrRole(extractResourceUserId ResourceIDExtractor, roles ...user.Role) func(http.Handler) http.Handler {
+func (m *MiddleWare) RequireSelfOrRole(extractResourceUserID ResourceIDExtractor, roles ...user.Role) func(http.Handler) http.Handler {
 	allowed := make(map[user.Role]struct{}, len(roles))
 	for _, role := range roles {
 		allowed[role] = struct{}{}
@@ -37,7 +37,7 @@ func (m *MiddleWare) RequireSelfOrRole(extractResourceUserId ResourceIDExtractor
 				next.ServeHTTP(w, r)
 				return
 			}
-			resourceUserID, err := extractResourceUserId(r)
+			resourceUserID, err := extractResourceUserID(r)
 
 			if err != nil {
 				response.SendError(w, http.StatusBadRequest, "invalid_path_param", "Invalid path parameter")
@@ -108,7 +108,7 @@ func (m *MiddleWare) RequireAuth(next http.Handler) http.Handler {
 		}
 
 		ctx := ContextWithUser(r.Context(), Principal{
-			UserID: claims.UserId,
+			UserID: claims.UserID,
 			Email:  claims.Email,
 			Role:   user.Role(claims.Role),
 		})

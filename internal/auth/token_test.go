@@ -31,8 +31,8 @@ func TestTokenManager_GenerateAndParse(t *testing.T) {
 		t.Fatalf("Expected issuer to be %s, got %s", "go-crud-api", claims.Issuer)
 	}
 
-	if claims.UserId != 12 {
-		t.Fatalf("Expected user id to be %d, got %d", 12, claims.UserId)
+	if claims.UserID != 12 {
+		t.Fatalf("Expected user id to be %d, got %d", 12, claims.UserID)
 	}
 
 	if claims.Email != "alex@ee.com" {

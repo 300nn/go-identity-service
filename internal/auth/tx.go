@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"CrudTutorialProject/internal/outbox"
 	"CrudTutorialProject/internal/user"
 	"context"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 type TxStores struct {
 	UserStore         UserStore
 	RefreshTokenStore RefreshTokenStore
+	OutboxStore       outbox.Store
 }
 
 type TxFactory interface {
@@ -40,6 +42,7 @@ func (f *PostgresTxFactory) WithinTx(ctx context.Context, fn func(stores TxStore
 	stores := TxStores{
 		UserStore:         user.NewPostgresRepository(tx),
 		RefreshTokenStore: NewRefreshTokenRepository(tx),
+		OutboxStore:       outbox.NewPostgresRepository(tx),
 	}
 
 	if err := fn(stores); err != nil {

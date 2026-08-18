@@ -2,8 +2,10 @@ package auth_test
 
 import (
 	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/outbox"
 	"CrudTutorialProject/internal/user"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -30,7 +32,9 @@ func newTestAuthApp(t *testing.T) testAuthApp {
 	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
 	refresh := auth.NewRefreshTokenManager()
 
-	txFactory := newFakeTxFactory(userRepo, refreshRepo)
+	outboxStore := newFakeOutboxStore()
+
+	txFactory := newFakeTxFactory(userRepo, refreshRepo, outboxStore)
 
 	service := auth.NewService(
 		userRepo,
@@ -128,8 +132,8 @@ func TestService_Register_Success(t *testing.T) {
 		t.Fatalf("Parse access token returned error: %v", err)
 	}
 
-	if claims.UserId != result.User.ID {
-		t.Fatalf("expected token user id %d, got %d", result.User.ID, claims.UserId)
+	if claims.UserID != result.User.ID {
+		t.Fatalf("expected token user id %d, got %d", result.User.ID, claims.UserID)
 	}
 }
 
@@ -332,8 +336,8 @@ func TestService_Refresh_Success(t *testing.T) {
 		t.Fatalf("Parse access token returned error: %v", err)
 	}
 
-	if claims.UserId != registerResult.User.ID {
-		t.Fatalf("expected claims user id %d, got %d", registerResult.User.ID, claims.UserId)
+	if claims.UserID != registerResult.User.ID {
+		t.Fatalf("expected claims user id %d, got %d", registerResult.User.ID, claims.UserID)
 	}
 }
 
@@ -442,7 +446,9 @@ func TestService_Refresh_CreateNewTokenFails_DoesNotRevokeOldToken(t *testing.T)
 	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
 	refresh := auth.NewRefreshTokenManager()
 
-	normalTxFactory := newFakeTxFactory(userRepo, baseRefreshRepo)
+	outboxStore := newFakeOutboxStore()
+
+	normalTxFactory := newFakeTxFactory(userRepo, baseRefreshRepo, outboxStore)
 
 	service := auth.NewService(
 		userRepo,
@@ -468,7 +474,7 @@ func TestService_Refresh_CreateNewTokenFails_DoesNotRevokeOldToken(t *testing.T)
 		RefreshTokenStore: baseRefreshRepo,
 	}
 
-	failingTxFactory := newFakeTxFactoryWithRefreshStore(userRepo, baseRefreshRepo, failingRefreshRepo)
+	failingTxFactory := newFakeTxFactoryWithStores(userRepo, baseRefreshRepo, failingRefreshRepo, outboxStore)
 
 	serviceWithFailingTx := auth.NewService(
 		userRepo,
@@ -501,14 +507,17 @@ func TestService_Register_CreateRefreshTokenFails_RollsBackUser(t *testing.T) {
 	userRepo := newFakeUserRepository()
 	refreshRepo := newFakeRefreshTokenRepository()
 
+	outboxStore := newFakeOutboxStore()
+
 	failingRefreshStore := &failingCreateRefreshTokenStore{
 		RefreshTokenStore: refreshRepo,
 	}
 
-	txFactory := newFakeTxFactoryWithRefreshStore(
+	txFactory := newFakeTxFactoryWithStores(
 		userRepo,
 		refreshRepo,
 		failingRefreshStore,
+		outboxStore,
 	)
 
 	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
@@ -546,5 +555,102 @@ func TestService_Register_CreateRefreshTokenFails_RollsBackUser(t *testing.T) {
 
 	if len(refreshRepo.tokens) != 0 {
 		t.Fatalf("expected refresh tokens to be rolled back, got %d", len(refreshRepo.tokens))
+	}
+}
+
+func TestService_Register_CreatesOutboxEvent(t *testing.T) {
+	ctx := t.Context()
+	app := newTestAuthApp(t)
+
+	result, err := app.service.Register(ctx, auth.RegisterRequest{
+		Name:     "Alex",
+		Email:    "alex@example.com",
+		Age:      25,
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+
+	if len(app.txFactory.outboxStore.events) != 1 {
+		t.Fatalf("expected 1 outbox event, got %d", len(app.txFactory.outboxStore.events))
+	}
+
+	var event outbox.Event
+	for _, e := range app.txFactory.outboxStore.events {
+		event = e
+	}
+
+	if event.EventType != outbox.EventTypeUserRegistered {
+		t.Fatalf("expected event type %q, got %q", outbox.EventTypeUserRegistered, event.EventType)
+	}
+
+	if event.AggregateType != outbox.AggregateUser {
+		t.Fatalf("expected aggregate type %q, got %q", outbox.AggregateUser, event.AggregateType)
+	}
+
+	if event.AggregateID != strconv.FormatInt(result.User.ID, 10) {
+		t.Fatalf("expected aggregate id %d, got %s", result.User.ID, event.AggregateID)
+	}
+
+	if event.Payload == "" {
+		t.Fatal("expected event payload to be set")
+	}
+}
+
+func TestService_Register_CreateOutboxEventFails_RollsBackUserAndRefreshToken(t *testing.T) {
+	ctx := t.Context()
+
+	userRepo := newFakeUserRepository()
+	refreshRepo := newFakeRefreshTokenRepository()
+	outboxStore := newFakeOutboxStore()
+	outboxStore.createErr = errCreateOutboxEventFailed
+
+	txFactory := newFakeTxFactoryWithStores(
+		userRepo,
+		refreshRepo,
+		refreshRepo,
+		outboxStore,
+	)
+
+	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
+	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	refreshTokens := auth.NewRefreshTokenManager()
+
+	service := auth.NewService(
+		userRepo,
+		refreshRepo,
+		txFactory,
+		hasher,
+		tokens,
+		refreshTokens,
+		30*24*time.Hour,
+	)
+
+	_, err := service.Register(ctx, auth.RegisterRequest{
+		Name:     "Alex",
+		Email:    "alex@example.com",
+		Age:      25,
+		Password: "password123",
+	})
+	if err == nil {
+		t.Fatal("expected Register error, got nil")
+	}
+
+	exists, err := userRepo.ExistsByEmail(ctx, "alex@example.com")
+	if err != nil {
+		t.Fatalf("ExistsByEmail returned error: %v", err)
+	}
+
+	if exists {
+		t.Fatal("expected user to be rolled back")
+	}
+
+	if len(refreshRepo.tokens) != 0 {
+		t.Fatalf("expected refresh tokens to be rolled back, got %d", len(refreshRepo.tokens))
+	}
+
+	if len(outboxStore.events) != 0 {
+		t.Fatalf("expected outbox events to be rolled back, got %d", len(outboxStore.events))
 	}
 }

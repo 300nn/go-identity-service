@@ -1,6 +1,7 @@
 package auth_test
 
 import (
+	"CrudTutorialProject/internal/outbox"
 	"context"
 
 	"CrudTutorialProject/internal/auth"
@@ -11,28 +12,33 @@ type fakeTxFactory struct {
 	userRepo     *fakeUserRepository
 	refreshRepo  *fakeRefreshTokenRepository
 	refreshStore auth.RefreshTokenStore
+	outboxStore  *fakeOutboxStore
 }
 
 func newFakeTxFactory(
 	userRepo *fakeUserRepository,
 	refreshRepo *fakeRefreshTokenRepository,
+	outboxStore *fakeOutboxStore,
 ) *fakeTxFactory {
 	return &fakeTxFactory{
 		userRepo:     userRepo,
 		refreshRepo:  refreshRepo,
 		refreshStore: refreshRepo,
+		outboxStore:  outboxStore,
 	}
 }
 
-func newFakeTxFactoryWithRefreshStore(
+func newFakeTxFactoryWithStores(
 	userRepo *fakeUserRepository,
 	refreshRepo *fakeRefreshTokenRepository,
 	refreshStore auth.RefreshTokenStore,
+	outboxStore *fakeOutboxStore,
 ) *fakeTxFactory {
 	return &fakeTxFactory{
 		userRepo:     userRepo,
 		refreshRepo:  refreshRepo,
 		refreshStore: refreshStore,
+		outboxStore:  outboxStore,
 	}
 }
 
@@ -46,9 +52,13 @@ func (f *fakeTxFactory) WithinTx(
 	refreshSnapshot := copyRefreshTokens(f.refreshRepo.tokens)
 	refreshNextIDSnapshot := f.refreshRepo.nextID
 
+	outboxSnapshot := copyOutboxEvents(f.outboxStore.events)
+	outboxNextIDSnapshot := f.outboxStore.nextID
+
 	err := fn(auth.TxStores{
 		UserStore:         f.userRepo,
 		RefreshTokenStore: f.refreshStore,
+		OutboxStore:       f.outboxStore,
 	})
 	if err != nil {
 		f.userRepo.users = usersSnapshot
@@ -56,6 +66,9 @@ func (f *fakeTxFactory) WithinTx(
 
 		f.refreshRepo.tokens = refreshSnapshot
 		f.refreshRepo.nextID = refreshNextIDSnapshot
+
+		f.outboxStore.events = outboxSnapshot
+		f.outboxStore.nextID = outboxNextIDSnapshot
 
 		return err
 	}
@@ -78,6 +91,16 @@ func copyRefreshTokens(src map[int64]auth.RefreshToken) map[int64]auth.RefreshTo
 
 	for id, token := range src {
 		dst[id] = token
+	}
+
+	return dst
+}
+
+func copyOutboxEvents(src map[int64]outbox.Event) map[int64]outbox.Event {
+	dst := make(map[int64]outbox.Event, len(src))
+
+	for id, event := range src {
+		dst[id] = event
 	}
 
 	return dst

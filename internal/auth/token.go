@@ -22,23 +22,23 @@ func NewTokenManager(secret string, ttl time.Duration, issuer string) *TokenMana
 }
 
 type Claims struct {
-	UserId int64  `json:"userId"`
+	UserID int64  `json:"userID"`
 	Email  string `json:"email"`
 	Role   string `json:"role"`
 
 	jwt.RegisteredClaims
 }
 
-func (m *TokenManager) Generate(userId int64, email string, role string) (string, error) {
+func (m *TokenManager) Generate(userID int64, email string, role string) (string, error) {
 	now := time.Now().UTC()
 
 	claims := Claims{
-		UserId: userId,
+		UserID: userID,
 		Email:  email,
 		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    m.issuer,
-			Subject:   fmt.Sprintf("%d", userId),
+			Subject:   fmt.Sprintf("%d", userID),
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(m.ttl)),
 		},

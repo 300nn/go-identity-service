@@ -34,7 +34,8 @@ func newTestAuthHTTPApp(t *testing.T) *testAuthHTTPApp {
 	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
 	refreshTokens := auth.NewRefreshTokenManager()
 	refreshTokenRepo := newFakeRefreshTokenRepository()
-	txFactory := newFakeTxFactory(repo, refreshTokenRepo)
+	outboxStore := newFakeOutboxStore()
+	txFactory := newFakeTxFactory(repo, refreshTokenRepo, outboxStore)
 
 	service := auth.NewService(repo, refreshTokenRepo, txFactory, hasher, tokens, refreshTokens, 15*time.Hour)
 

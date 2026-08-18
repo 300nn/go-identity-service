@@ -1,13 +1,17 @@
 package auth
 
 import (
+	"CrudTutorialProject/internal/outbox"
 	"CrudTutorialProject/internal/user"
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
+
+const dummyPasswordHash = "$2a$12$e80yq9gIe67Cqg4a0d9I6.L971nJ9.xP7pB/64QZz.7iG8JgP1G2m"
 
 type UserStore interface {
 	Create(ctx context.Context, u user.User) (user.User, error)
@@ -93,6 +97,27 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 			return err
 		}
 
+		payload, err := outbox.MarshalPayload(outbox.UserRegisteredPayload{
+			UserID: created.ID,
+			Email:  created.Email,
+			Role:   string(created.Role),
+		})
+
+		if err != nil {
+			return err
+		}
+
+		_, err = stores.OutboxStore.Create(ctx, outbox.Event{
+			EventType:     outbox.EventTypeUserRegistered,
+			AggregateType: outbox.AggregateUser,
+			AggregateID:   strconv.FormatInt(created.ID, 10),
+			Payload:       payload,
+		})
+
+		if err != nil {
+			return fmt.Errorf("create user registered outbox event: %w", err)
+		}
+
 		result = AuthResponse{
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
@@ -115,7 +140,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (AuthResponse, er
 
 	found, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
-		s.hasher.Compare("$2a$12$e80yq9gIe67Cqg4a0d9I6.L971nJ9.xP7pB/64QZz.7iG8JgP1G2m", req.Password)
+		s.hasher.Compare(dummyPasswordHash, req.Password)
 		if errors.Is(err, user.ErrUserNotFound) {
 			return AuthResponse{}, NewInvalidCredentialsError()
 		}

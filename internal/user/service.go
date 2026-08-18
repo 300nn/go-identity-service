@@ -86,7 +86,7 @@ type ProfileWithUser struct {
 
 func (s *Service) CreateUser(ctx context.Context, request CreateUserInput) (User, error) {
 	name := strings.TrimSpace(request.Name)
-	email := strings.TrimSpace(request.Email)
+	email := strings.TrimSpace(strings.ToLower(request.Email))
 	age := request.Age
 
 	if err := validateUserInput(name, email, age); err != nil {
@@ -183,7 +183,7 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, user UpdateUserInput
 	}
 
 	name := strings.TrimSpace(user.Name)
-	email := strings.TrimSpace(user.Email)
+	email := strings.TrimSpace(strings.ToLower(user.Email))
 	age := user.Age
 
 	if err := validateUserInput(name, email, age); err != nil {
@@ -252,7 +252,7 @@ func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 }
 
 func (s *Service) GetUserByEmail(ctx context.Context, email string) (User, error) {
-	email = strings.TrimSpace(email)
+	email = strings.TrimSpace(strings.ToLower(email))
 
 	if email == "" {
 		return User{}, apperror.NewFieldValidationError(map[string]string{

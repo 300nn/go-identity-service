@@ -92,7 +92,7 @@ func TestHandler_CreateUser_Success(t *testing.T) {
 		app.handler,
 		http.MethodPost,
 		"/users",
-		`{"name":"Alex","email":"alex@example.com","age":25}`,
+		`{"name":"Alex","email":"alex@example.com","age":25,"password":"strongpassword123"}`,
 	)
 	defer closeResponseBody(t, res.Body)
 
@@ -131,7 +131,7 @@ func TestHandler_CreateUser_ValidationError(t *testing.T) {
 		app.handler,
 		http.MethodPost,
 		"/users",
-		`{"name":"","email":"wrong","age":-1}`,
+		`{"name":"","email":"wrong","age":-1,"password":"123"}`,
 	)
 	defer closeResponseBody(t, res.Body)
 
@@ -155,6 +155,10 @@ func TestHandler_CreateUser_ValidationError(t *testing.T) {
 
 	if got.Error.Fields["age"] == "" {
 		t.Fatal("expected validation error for age")
+	}
+
+	if got.Error.Fields["password"] == "" {
+		t.Fatal("expected validation error for password")
 	}
 }
 
@@ -189,7 +193,7 @@ func TestHandler_CreateUser_UnknownField(t *testing.T) {
 		app.handler,
 		http.MethodPost,
 		"/users",
-		`{"name":"Alex","email":"alex@example.com","age":25,"role":"admin"}`,
+		`{"name":"Alex","email":"alex@example.com","age":25,"password":"strongpassword123","role":"admin"}`,
 	)
 	defer closeResponseBody(t, res.Body)
 
