@@ -60,7 +60,11 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware, hasher, redisClient, cfg)
 
-	initOutboxModule(dbPool, log, cfg.Worker, ctx)
+	err = initOutboxModule(dbPool, log, cfg, ctx)
+
+	if err != nil {
+		return err
+	}
 
 	handler := middleware.Chain(
 		mux,
@@ -214,19 +218,40 @@ func initAuthModule(
 	return authMiddleware
 }
 
-func initOutboxModule(dbPool *pgxpool.Pool, log *slog.Logger, cfg outbox.WorkerConfig, ctx context.Context) {
+func initOutboxModule(
+	dbPool *pgxpool.Pool,
+	log *slog.Logger,
+	cfg *config.Config,
+	ctx context.Context,
+) error {
+
 	outboxRepo := outbox.NewPostgresRepository(dbPool)
-	outboxPublisher := outbox.NewLogPublisher(log)
+	kafkaPublisher, err := outbox.NewKafkaPublisher(outbox.KafkaPublisherConfig{
+		Brokers:               cfg.Kafka.BrokerList(),
+		Topic:                 cfg.Kafka.OutboxTopic,
+		ProducerLinger:        cfg.Kafka.ProducerLinger,
+		ProducerBatchMaxBytes: cfg.Kafka.ProducerBatchMaxBytes,
+	})
+	if err != nil {
+		return fmt.Errorf("create kafka publisher: %w", err)
+	}
 	outboxWorker := outbox.NewWorker(
 		outboxRepo,
-		outboxPublisher,
+		kafkaPublisher,
 		log,
-		cfg,
+		cfg.Worker,
 	)
+
+	go func() {
+		<-ctx.Done()
+		kafkaPublisher.Close()
+	}()
 
 	go func() {
 		if err := outboxWorker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			log.Error("outbox worker stopped with error", slog.Any("error", err))
 		}
 	}()
+
+	return nil
 }

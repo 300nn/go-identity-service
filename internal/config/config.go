@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -29,6 +30,7 @@ type Config struct {
 	Redis     RedisConfig          `yaml:"redis" env-prefix:"REDIS_"`
 	Cache     user.CacheConfig     `yaml:"cache" env-prefix:"CACHE_"`
 	Worker    outbox.WorkerConfig  `yaml:"worker" env-prefix:"WORKER_"`
+	Kafka     KafkaConfig          `yaml:"kafka" env-prefix:"KAFKA_"`
 }
 
 type HTTPConfig struct {
@@ -79,6 +81,27 @@ type RedisConfig struct {
 	Port     int    `yaml:"port" env:"PORT" env-default:"6379" validate:"gte=1,lte=65535"`
 	Password string `yaml:"password" env:"PASSWORD"`
 	DB       int    `yaml:"db" env:"DB" env-default:"0" validate:"gte=0"`
+}
+
+type KafkaConfig struct {
+	Brokers               string        `yaml:"brokers" env:"BROKERS" env-default:"localhost:9092" validate:"required"`
+	OutboxTopic           string        `yaml:"outbox_topic" env:"OUTBOX_TOPIC" env-default:"outbox.events" validate:"required"`
+	ProducerBatchMaxBytes int32         `yaml:"producer_batch_max_bytes" env:"PRODUCER_BATCH_MAX_BYTES" env-default:"1048576" validate:"gt=0"`
+	ProducerLinger        time.Duration `yaml:"producer_linger" env:"PRODUCER_LINGER" env-default:"10ms" validate:"gt=0"`
+}
+
+func (c KafkaConfig) BrokerList() []string {
+	parts := strings.Split(c.Brokers, ",")
+	brokers := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+		broker := strings.TrimSpace(part)
+		if broker != "" {
+			brokers = append(brokers, broker)
+		}
+	}
+
+	return brokers
 }
 
 func (r RedisConfig) Address() string {
