@@ -101,7 +101,7 @@ func TestPostgresRepository_MarkProcessed(t *testing.T) {
 	pool := testutils.NewTestPostgresPool(t)
 	repo := outbox.NewPostgresRepository(pool)
 
-	created, err := repo.Create(ctx, outbox.Event{
+	_, err := repo.Create(ctx, outbox.Event{
 		EventType:     outbox.EventTypeUserRegistered,
 		AggregateType: outbox.AggregateUser,
 		AggregateID:   "1",
@@ -128,8 +128,6 @@ func TestPostgresRepository_MarkProcessed(t *testing.T) {
 	if len(events) != 0 {
 		t.Fatalf("expected processed event not to be fetched again, got %d", len(events))
 	}
-
-	_ = created
 }
 
 func TestPostgresRepository_MarkFailed_ReturnsToNewWhenAttemptsRemain(t *testing.T) {
@@ -172,5 +170,40 @@ func TestPostgresRepository_MarkFailed_ReturnsToNewWhenAttemptsRemain(t *testing
 
 	if events[0].LockedAt == nil {
 		t.Fatal("expected locked_at to be set after refetch")
+	}
+}
+
+func TestPostgresRepository_MarkFailed_MarksFailedWhenMaxAttemptsReached(t *testing.T) {
+	ctx := t.Context()
+
+	pool := testutils.NewTestPostgresPool(t)
+	repo := outbox.NewPostgresRepository(pool)
+
+	_, err := repo.Create(ctx, outbox.Event{
+		EventType:     outbox.EventTypeUserRegistered,
+		AggregateType: outbox.AggregateUser,
+		AggregateID:   "1",
+		Payload:       `{"userId":1}`,
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	events, err := repo.FetchBatch(ctx, 10)
+	if err != nil {
+		t.Fatalf("FetchBatch returned error: %v", err)
+	}
+
+	if err := repo.MarkFailed(ctx, events[0].ID, "permanent error", 1); err != nil {
+		t.Fatalf("MarkFailed returned error: %v", err)
+	}
+
+	events, err = repo.FetchBatch(ctx, 10)
+	if err != nil {
+		t.Fatalf("FetchBatch returned error: %v", err)
+	}
+
+	if len(events) != 0 {
+		t.Fatalf("expected FAILED event not to be fetched again, got %d", len(events))
 	}
 }
