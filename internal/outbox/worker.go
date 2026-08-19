@@ -8,9 +8,11 @@ import (
 )
 
 type WorkerConfig struct {
-	Interval    time.Duration `yaml:"interval" env:"INTERVAL" env-default:"5s" validate:"gt=0"`
-	BatchSize   int           `yaml:"batch_size" env:"BATCH_SIZE" env-default:"10" validate:"gt=0"`
-	MaxAttempts int           `yaml:"max_attempts" env:"MAX_ATTEMPTS" env-default:"3" validate:"gt=0"`
+	Interval       time.Duration `yaml:"interval" env:"INTERVAL" env-default:"5s" validate:"gt=0"`
+	BatchSize      int           `yaml:"batch_size" env:"BATCH_SIZE" env-default:"10" validate:"gt=0"`
+	MaxAttempts    int           `yaml:"max_attempts" env:"MAX_ATTEMPTS" env-default:"3" validate:"gt=0"`
+	LockTimeout    time.Duration `yaml:"lock_timeout" env:"LOCK_TIMEOUT" env-default:"1m" validate:"gt=0"`
+	ProcessTimeout time.Duration `yaml:"process_timeout" env:"PROCESS_TIMEOUT" env-default:"30s" validate:"gt=0"`
 }
 
 type Worker struct {
@@ -47,9 +49,13 @@ func (w *Worker) Run(ctx context.Context) error {
 		default:
 		}
 
-		if err := w.ProcessOnce(ctx); err != nil {
+		processCtx, cancel := context.WithTimeout(context.Background(), w.cfg.ProcessTimeout)
+
+		if err := w.ProcessOnce(processCtx); err != nil {
 			w.logger.Error("outbox process once failed", slog.Any("error", err))
 		}
+		cancel()
+
 		select {
 		case <-ctx.Done():
 			w.logger.Info("outbox worker stopped")
@@ -60,7 +66,7 @@ func (w *Worker) Run(ctx context.Context) error {
 }
 
 func (w *Worker) ProcessOnce(ctx context.Context) error {
-	events, err := w.store.FetchBatch(ctx, w.cfg.BatchSize)
+	events, err := w.store.FetchBatch(ctx, w.cfg.BatchSize, w.cfg.LockTimeout)
 	if err != nil {
 		return fmt.Errorf("fetch outbox batch: %w", err)
 	}

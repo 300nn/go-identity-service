@@ -12,7 +12,11 @@ import (
 type TxStores struct {
 	UserStore         UserStore
 	RefreshTokenStore RefreshTokenStore
-	OutboxStore       outbox.Store
+	OutboxStore       OutboxStore
+}
+
+type OutboxStore interface {
+	Create(ctx context.Context, event outbox.Event) (outbox.Event, error)
 }
 
 type TxFactory interface {

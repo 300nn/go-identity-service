@@ -3,6 +3,7 @@ package outbox_test
 import (
 	"context"
 	"errors"
+	"time"
 
 	"CrudTutorialProject/internal/outbox"
 )
@@ -33,7 +34,7 @@ func (s *fakeStore) Create(ctx context.Context, event outbox.Event) (outbox.Even
 	return event, nil
 }
 
-func (s *fakeStore) FetchBatch(ctx context.Context, limit int) ([]outbox.Event, error) {
+func (s *fakeStore) FetchBatch(ctx context.Context, limit int, lockTimeout time.Duration) ([]outbox.Event, error) {
 	s.fetchCalls++
 
 	if s.fetchErr != nil {

@@ -4,6 +4,7 @@ import (
 	"CrudTutorialProject/internal/outbox"
 	"CrudTutorialProject/internal/testutils"
 	"testing"
+	"time"
 )
 
 func TestPostgresRepository_Create(t *testing.T) {
@@ -73,7 +74,7 @@ func TestPostgresRepository_FetchBatch(t *testing.T) {
 		t.Fatalf("Create returned error: %v", err)
 	}
 
-	events, err := repo.FetchBatch(ctx, 10)
+	events, err := repo.FetchBatch(ctx, 10, time.Minute)
 	if err != nil {
 		t.Fatalf("FetchBatch returned error: %v", err)
 	}
@@ -111,7 +112,7 @@ func TestPostgresRepository_MarkProcessed(t *testing.T) {
 		t.Fatalf("Create returned error: %v", err)
 	}
 
-	events, err := repo.FetchBatch(ctx, 10)
+	events, err := repo.FetchBatch(ctx, 10, time.Minute)
 	if err != nil {
 		t.Fatalf("FetchBatch returned error: %v", err)
 	}
@@ -120,7 +121,7 @@ func TestPostgresRepository_MarkProcessed(t *testing.T) {
 		t.Fatalf("MarkProcessed returned error: %v", err)
 	}
 
-	events, err = repo.FetchBatch(ctx, 10)
+	events, err = repo.FetchBatch(ctx, 10, time.Minute)
 	if err != nil {
 		t.Fatalf("FetchBatch returned error: %v", err)
 	}
@@ -146,7 +147,7 @@ func TestPostgresRepository_MarkFailed_ReturnsToNewWhenAttemptsRemain(t *testing
 		t.Fatalf("Create returned error: %v", err)
 	}
 
-	events, err := repo.FetchBatch(ctx, 10)
+	events, err := repo.FetchBatch(ctx, 10, time.Minute)
 	if err != nil {
 		t.Fatalf("FetchBatch returned error: %v", err)
 	}
@@ -155,7 +156,7 @@ func TestPostgresRepository_MarkFailed_ReturnsToNewWhenAttemptsRemain(t *testing
 		t.Fatalf("MarkFailed returned error: %v", err)
 	}
 
-	events, err = repo.FetchBatch(ctx, 10)
+	events, err = repo.FetchBatch(ctx, 10, time.Minute)
 	if err != nil {
 		t.Fatalf("FetchBatch returned error: %v", err)
 	}
@@ -189,7 +190,7 @@ func TestPostgresRepository_MarkFailed_MarksFailedWhenMaxAttemptsReached(t *test
 		t.Fatalf("Create returned error: %v", err)
 	}
 
-	events, err := repo.FetchBatch(ctx, 10)
+	events, err := repo.FetchBatch(ctx, 10, time.Minute)
 	if err != nil {
 		t.Fatalf("FetchBatch returned error: %v", err)
 	}
@@ -198,12 +199,99 @@ func TestPostgresRepository_MarkFailed_MarksFailedWhenMaxAttemptsReached(t *test
 		t.Fatalf("MarkFailed returned error: %v", err)
 	}
 
-	events, err = repo.FetchBatch(ctx, 10)
+	events, err = repo.FetchBatch(ctx, 10, time.Minute)
 	if err != nil {
 		t.Fatalf("FetchBatch returned error: %v", err)
 	}
 
 	if len(events) != 0 {
 		t.Fatalf("expected FAILED event not to be fetched again, got %d", len(events))
+	}
+}
+
+func TestPostgresRepository_FetchBatch_DoesNotFetchFreshProcessingEvent(t *testing.T) {
+	ctx := t.Context()
+
+	pool := testutils.NewTestPostgresPool(t)
+	repo := outbox.NewPostgresRepository(pool)
+
+	_, err := repo.Create(ctx, outbox.Event{
+		EventType:     outbox.EventTypeUserRegistered,
+		AggregateType: outbox.AggregateUser,
+		AggregateID:   "1",
+		Payload:       `{"userId":1}`,
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	firstBatch, err := repo.FetchBatch(ctx, 10, time.Minute)
+	if err != nil {
+		t.Fatalf("first FetchBatch returned error: %v", err)
+	}
+
+	if len(firstBatch) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(firstBatch))
+	}
+
+	secondBatch, err := repo.FetchBatch(ctx, 10, time.Minute)
+	if err != nil {
+		t.Fatalf("second FetchBatch returned error: %v", err)
+	}
+
+	if len(secondBatch) != 0 {
+		t.Fatalf("expected fresh PROCESSING event not to be fetched, got %d", len(secondBatch))
+	}
+}
+
+func TestPostgresRepository_FetchBatch_RefetchesStaleProcessingEvent(t *testing.T) {
+	ctx := t.Context()
+
+	pool := testutils.NewTestPostgresPool(t)
+	repo := outbox.NewPostgresRepository(pool)
+
+	_, err := repo.Create(ctx, outbox.Event{
+		EventType:     outbox.EventTypeUserRegistered,
+		AggregateType: outbox.AggregateUser,
+		AggregateID:   "1",
+		Payload:       `{"userId":1}`,
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	firstBatch, err := repo.FetchBatch(ctx, 10, time.Minute)
+	if err != nil {
+		t.Fatalf("first FetchBatch returned error: %v", err)
+	}
+
+	if len(firstBatch) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(firstBatch))
+	}
+
+	_, err = pool.Exec(
+		ctx,
+		`UPDATE outbox_events SET locked_at = now() - interval '10 minutes' WHERE id = $1`,
+		firstBatch[0].ID,
+	)
+	if err != nil {
+		t.Fatalf("make event stale: %v", err)
+	}
+
+	secondBatch, err := repo.FetchBatch(ctx, 10, time.Minute)
+	if err != nil {
+		t.Fatalf("second FetchBatch returned error: %v", err)
+	}
+
+	if len(secondBatch) != 1 {
+		t.Fatalf("expected stale PROCESSING event to be fetched, got %d", len(secondBatch))
+	}
+
+	if secondBatch[0].ID != firstBatch[0].ID {
+		t.Fatalf("expected event id %d, got %d", firstBatch[0].ID, secondBatch[0].ID)
+	}
+
+	if secondBatch[0].Attempts != 2 {
+		t.Fatalf("expected attempts 2, got %d", secondBatch[0].Attempts)
 	}
 }

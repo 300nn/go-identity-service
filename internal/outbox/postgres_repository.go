@@ -3,6 +3,7 @@ package outbox
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -56,10 +57,12 @@ func (r *PostgresRepository) Create(ctx context.Context, event Event) (Event, er
 	return created, nil
 }
 
-func (r *PostgresRepository) FetchBatch(ctx context.Context, limit int) ([]Event, error) {
+func (r *PostgresRepository) FetchBatch(ctx context.Context, limit int, lockTimeout time.Duration) ([]Event, error) {
 	if limit <= 0 {
 		return nil, nil
 	}
+
+	lockedBefore := time.Now().UTC().Add(-lockTimeout)
 
 	const query = `
 		update outbox_events
@@ -70,7 +73,12 @@ func (r *PostgresRepository) FetchBatch(ctx context.Context, limit int) ([]Event
 		where id in (
 		    select id
 		    from outbox_events
-		    where status = 'NEW'
+		    where status = 'NEW' 
+		       or (
+		           status = 'PROCESSING'
+		           and locked_at is not null
+		           and locked_at < $2
+		       )
 		    order by created_at
 		    limit $1
 		    for update skip locked 
@@ -89,7 +97,7 @@ func (r *PostgresRepository) FetchBatch(ctx context.Context, limit int) ([]Event
 		    created_at
 		`
 
-	rows, err := r.db.Query(ctx, query, limit)
+	rows, err := r.db.Query(ctx, query, limit, lockedBefore)
 
 	if err != nil {
 		return nil, fmt.Errorf("fetch outbox events: %w", err)

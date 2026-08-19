@@ -261,13 +261,15 @@ func initOutboxModule(
 
 	var shutdownOnce sync.Once
 
+	waitTimeout := cfg.Worker.ProcessTimeout + 5*time.Second
+
 	shutdownFunc := func() {
 		shutdownOnce.Do(func() {
 			cancelWorker()
 
 			select {
 			case <-done:
-			case <-time.After(10 * time.Second):
+			case <-time.After(waitTimeout):
 				log.Warn("timeout waiting for outbox worker to stop")
 			}
 

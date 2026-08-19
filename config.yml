@@ -33,6 +33,8 @@ worker:
   interval: 5s
   batch_size: 10
   max_attempts: 3
+  lock_timeout: 1m
+  process_timeout: 30s
 
 kafka:
   brokers: "localhost:9092"
