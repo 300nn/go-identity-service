@@ -17,12 +17,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
+
+type ShutdownFunc func()
 
 func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	var shuttingDown atomic.Bool
@@ -60,11 +63,13 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware, hasher, redisClient, cfg)
 
-	err = initOutboxModule(dbPool, log, cfg, ctx)
+	outboxShutdown, err := initOutboxModule(dbPool, log, cfg)
 
 	if err != nil {
 		return err
 	}
+
+	defer outboxShutdown()
 
 	handler := middleware.Chain(
 		mux,
@@ -222,10 +227,10 @@ func initOutboxModule(
 	dbPool *pgxpool.Pool,
 	log *slog.Logger,
 	cfg *config.Config,
-	ctx context.Context,
-) error {
+) (ShutdownFunc, error) {
 
 	outboxRepo := outbox.NewPostgresRepository(dbPool)
+
 	kafkaPublisher, err := outbox.NewKafkaPublisher(outbox.KafkaPublisherConfig{
 		Brokers:               cfg.Kafka.BrokerList(),
 		Topic:                 cfg.Kafka.OutboxTopic,
@@ -233,8 +238,12 @@ func initOutboxModule(
 		ProducerBatchMaxBytes: cfg.Kafka.ProducerBatchMaxBytes,
 	})
 	if err != nil {
-		return fmt.Errorf("create kafka publisher: %w", err)
+		return nil, fmt.Errorf("create kafka publisher: %w", err)
 	}
+
+	workerCtx, cancelWorker := context.WithCancel(context.Background())
+	done := make(chan struct{})
+
 	outboxWorker := outbox.NewWorker(
 		outboxRepo,
 		kafkaPublisher,
@@ -243,15 +252,28 @@ func initOutboxModule(
 	)
 
 	go func() {
-		<-ctx.Done()
-		kafkaPublisher.Close()
-	}()
+		defer close(done)
 
-	go func() {
-		if err := outboxWorker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		if err := outboxWorker.Run(workerCtx); err != nil && !errors.Is(err, context.Canceled) {
 			log.Error("outbox worker stopped with error", slog.Any("error", err))
 		}
 	}()
 
-	return nil
+	var shutdownOnce sync.Once
+
+	shutdownFunc := func() {
+		shutdownOnce.Do(func() {
+			cancelWorker()
+
+			select {
+			case <-done:
+			case <-time.After(10 * time.Second):
+				log.Warn("timeout waiting for outbox worker to stop")
+			}
+
+			kafkaPublisher.Close()
+		})
+	}
+
+	return shutdownFunc, nil
 }

@@ -40,6 +40,13 @@ func (w *Worker) Run(ctx context.Context) error {
 	)
 
 	for {
+		select {
+		case <-ctx.Done():
+			w.logger.Info("outbox worker shutting down")
+			return ctx.Err()
+		default:
+		}
+
 		if err := w.ProcessOnce(ctx); err != nil {
 			w.logger.Error("outbox process once failed", slog.Any("error", err))
 		}

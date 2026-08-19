@@ -25,6 +25,7 @@ func main() {
 		context.Background(),
 		os.Interrupt,
 		syscall.SIGTERM,
+		syscall.SIGINT,
 	)
 	defer stop()
 
