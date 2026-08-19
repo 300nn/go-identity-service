@@ -5,6 +5,7 @@ import (
 	"CrudTutorialProject/internal/config"
 	"CrudTutorialProject/internal/httpserver"
 	"CrudTutorialProject/internal/middleware"
+	"CrudTutorialProject/internal/outbox"
 	"CrudTutorialProject/internal/postgres"
 	"CrudTutorialProject/internal/ratelimit"
 	"CrudTutorialProject/internal/redisclient"
@@ -58,6 +59,8 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, hasher, dbPool, redisClient)
 
 	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware, hasher, redisClient, cfg)
+
+	initOutboxModule(dbPool, log, cfg.Worker, ctx)
 
 	handler := middleware.Chain(
 		mux,
@@ -209,4 +212,21 @@ func initAuthModule(
 	authHandler.RegisterRoutes(mux, authMiddleware)
 
 	return authMiddleware
+}
+
+func initOutboxModule(dbPool *pgxpool.Pool, log *slog.Logger, cfg outbox.WorkerConfig, ctx context.Context) {
+	outboxRepo := outbox.NewPostgresRepository(dbPool)
+	outboxPublisher := outbox.NewLogPublisher(log)
+	outboxWorker := outbox.NewWorker(
+		outboxRepo,
+		outboxPublisher,
+		log,
+		cfg,
+	)
+
+	go func() {
+		if err := outboxWorker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			log.Error("outbox worker stopped with error", slog.Any("error", err))
+		}
+	}()
 }

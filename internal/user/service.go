@@ -199,8 +199,8 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, user UpdateUserInput
 		return User{}, fmt.Errorf("update user by id: %d, %w", id, err)
 	}
 
-	if existing.Email != user.Email {
-		exists, err := s.repo.ExistsByEmail(ctx, user.Email)
+	if existing.Email != email {
+		exists, err := s.repo.ExistsByEmail(ctx, email)
 		if err != nil {
 			return User{}, fmt.Errorf("checked email exists: %w", err)
 		}

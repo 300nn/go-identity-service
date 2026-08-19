@@ -29,6 +29,11 @@ auth:
   jwt_secret: "local-dev-secret-change-me-please-32"
   access_token_ttl: 15m
 
+worker:
+  interval: 5s
+  batch_size: 10
+  max_attempts: 3
+
 redis:
   host: "localhost"
   port: 16379

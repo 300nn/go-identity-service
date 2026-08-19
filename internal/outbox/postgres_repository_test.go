@@ -56,3 +56,121 @@ func TestPostgresRepository_Create_InvalidPayload(t *testing.T) {
 		t.Fatal("expected error for invalid JSON payload")
 	}
 }
+
+func TestPostgresRepository_FetchBatch(t *testing.T) {
+	ctx := t.Context()
+
+	pool := testutils.NewTestPostgresPool(t)
+	repo := outbox.NewPostgresRepository(pool)
+
+	_, err := repo.Create(ctx, outbox.Event{
+		EventType:     outbox.EventTypeUserRegistered,
+		AggregateType: outbox.AggregateUser,
+		AggregateID:   "1",
+		Payload:       `{"userId":1}`,
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	events, err := repo.FetchBatch(ctx, 10)
+	if err != nil {
+		t.Fatalf("FetchBatch returned error: %v", err)
+	}
+
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+
+	if events[0].Status != outbox.StatusProcessing {
+		t.Fatalf("expected status %q, got %q", outbox.StatusProcessing, events[0].Status)
+	}
+
+	if events[0].Attempts != 1 {
+		t.Fatalf("expected attempts 1, got %d", events[0].Attempts)
+	}
+
+	if events[0].LockedAt == nil {
+		t.Fatal("expected locked_at to be set")
+	}
+}
+
+func TestPostgresRepository_MarkProcessed(t *testing.T) {
+	ctx := t.Context()
+
+	pool := testutils.NewTestPostgresPool(t)
+	repo := outbox.NewPostgresRepository(pool)
+
+	created, err := repo.Create(ctx, outbox.Event{
+		EventType:     outbox.EventTypeUserRegistered,
+		AggregateType: outbox.AggregateUser,
+		AggregateID:   "1",
+		Payload:       `{"userId":1}`,
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	events, err := repo.FetchBatch(ctx, 10)
+	if err != nil {
+		t.Fatalf("FetchBatch returned error: %v", err)
+	}
+
+	if err := repo.MarkProcessed(ctx, events[0].ID); err != nil {
+		t.Fatalf("MarkProcessed returned error: %v", err)
+	}
+
+	events, err = repo.FetchBatch(ctx, 10)
+	if err != nil {
+		t.Fatalf("FetchBatch returned error: %v", err)
+	}
+
+	if len(events) != 0 {
+		t.Fatalf("expected processed event not to be fetched again, got %d", len(events))
+	}
+
+	_ = created
+}
+
+func TestPostgresRepository_MarkFailed_ReturnsToNewWhenAttemptsRemain(t *testing.T) {
+	ctx := t.Context()
+
+	pool := testutils.NewTestPostgresPool(t)
+	repo := outbox.NewPostgresRepository(pool)
+
+	_, err := repo.Create(ctx, outbox.Event{
+		EventType:     outbox.EventTypeUserRegistered,
+		AggregateType: outbox.AggregateUser,
+		AggregateID:   "1",
+		Payload:       `{"userId":1}`,
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	events, err := repo.FetchBatch(ctx, 10)
+	if err != nil {
+		t.Fatalf("FetchBatch returned error: %v", err)
+	}
+
+	if err := repo.MarkFailed(ctx, events[0].ID, "temporary error", 3); err != nil {
+		t.Fatalf("MarkFailed returned error: %v", err)
+	}
+
+	events, err = repo.FetchBatch(ctx, 10)
+	if err != nil {
+		t.Fatalf("FetchBatch returned error: %v", err)
+	}
+
+	if len(events) != 1 {
+		t.Fatalf("expected event to be retried, got %d events", len(events))
+	}
+
+	if events[0].Attempts != 2 {
+		t.Fatalf("expected attempts 2, got %d", events[0].Attempts)
+	}
+
+	if events[0].LockedAt == nil {
+		t.Fatal("expected locked_at to be set after refetch")
+	}
+}
