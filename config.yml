@@ -41,6 +41,7 @@ kafka:
   outbox_topic: "outbox.events"
   producer_batch_max_bytes: 1048576
   producer_linger: 10ms
+  consumer_group: "go-crud-api"
 
 redis:
   host: "localhost"

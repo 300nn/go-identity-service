@@ -16,9 +16,11 @@ func newTestWorker(t *testing.T, store outbox.Store, publisher outbox.Publisher)
 		publisher,
 		discardLogger(t),
 		outbox.WorkerConfig{
-			Interval:    time.Second,
-			BatchSize:   10,
-			MaxAttempts: 3,
+			Interval:       time.Second,
+			BatchSize:      10,
+			MaxAttempts:    3,
+			LockTimeout:    time.Minute,
+			ProcessTimeout: time.Second,
 		},
 	)
 }

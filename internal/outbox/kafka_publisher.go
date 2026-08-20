@@ -34,7 +34,6 @@ func NewKafkaPublisher(cfg KafkaPublisherConfig) (*KafkaPublisher, error) {
 		kgo.SeedBrokers(cfg.Brokers...),
 		kgo.DefaultProduceTopic(cfg.Topic),
 		kgo.ClientID("go-crud-api"),
-		kgo.AllowAutoTopicCreation(),
 	}
 
 	if cfg.ProducerBatchMaxBytes > 0 {

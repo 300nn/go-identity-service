@@ -4,6 +4,7 @@ import (
 	"CrudTutorialProject/internal/auth"
 	"CrudTutorialProject/internal/config"
 	"CrudTutorialProject/internal/httpserver"
+	"CrudTutorialProject/internal/kafkaconsumer"
 	"CrudTutorialProject/internal/middleware"
 	"CrudTutorialProject/internal/outbox"
 	"CrudTutorialProject/internal/postgres"
@@ -63,12 +64,16 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware, hasher, redisClient, cfg)
 
-	outboxShutdown, err := initOutboxModule(dbPool, log, cfg)
-
+	consumerShutdown, err := initKafkaConsumerModule(dbPool, log, cfg)
 	if err != nil {
 		return err
 	}
+	defer consumerShutdown()
 
+	outboxShutdown, err := initOutboxModule(dbPool, log, cfg)
+	if err != nil {
+		return err
+	}
 	defer outboxShutdown()
 
 	handler := middleware.Chain(
@@ -274,6 +279,64 @@ func initOutboxModule(
 			}
 
 			kafkaPublisher.Close()
+		})
+	}
+
+	return shutdownFunc, nil
+}
+
+func initKafkaConsumerModule(
+	dbPool *pgxpool.Pool,
+	log *slog.Logger,
+	cfg *config.Config,
+) (ShutdownFunc, error) {
+	idempotencyStore := kafkaconsumer.NewPostgresIdempotencyStore(dbPool)
+
+	router := kafkaconsumer.NewRouter()
+	router.Register(
+		outbox.EventTypeUserRegistered,
+		kafkaconsumer.NewUserRegisteredHandler(log),
+	)
+
+	consumer, err := kafkaconsumer.NewConsumer(
+		kafkaconsumer.Config{
+			Brokers:       cfg.Kafka.BrokerList(),
+			Topic:         cfg.Kafka.OutboxTopic,
+			ConsumerGroup: cfg.Kafka.ConsumerGroup,
+		},
+		router,
+		idempotencyStore,
+		log,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("create kafka consumer: %w", err)
+	}
+
+	consumerCtx, cancelConsumer := context.WithCancel(context.Background())
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		if err := consumer.Run(consumerCtx); err != nil && !errors.Is(err, context.Canceled) {
+			log.Error("kafka consumer stopped with error", slog.Any("error", err))
+		}
+	}()
+	var shutdownOnce sync.Once
+
+	waitTimeout := cfg.Worker.ProcessTimeout + 5*time.Second
+
+	shutdownFunc := func() {
+		shutdownOnce.Do(func() {
+			cancelConsumer()
+
+			select {
+			case <-done:
+			case <-time.After(waitTimeout):
+				log.Warn("timeout waiting for kafka consumer to stop")
+			}
+
+			consumer.Close()
 		})
 	}
 

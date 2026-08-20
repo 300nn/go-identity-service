@@ -87,7 +87,8 @@ type KafkaConfig struct {
 	Brokers               string        `yaml:"brokers" env:"BROKERS" env-default:"localhost:9092" validate:"required"`
 	OutboxTopic           string        `yaml:"outbox_topic" env:"OUTBOX_TOPIC" env-default:"outbox.events" validate:"required"`
 	ProducerBatchMaxBytes int32         `yaml:"producer_batch_max_bytes" env:"PRODUCER_BATCH_MAX_BYTES" env-default:"1048576" validate:"gt=0"`
-	ProducerLinger        time.Duration `yaml:"producer_linger" env:"PRODUCER_LINGER" env-default:"10ms" validate:"gt=0"`
+	ProducerLinger        time.Duration `yaml:"producer_linger" env:"PRODUCER_LINGER" env-default:"10ms" validate:"gte=0"`
+	ConsumerGroup         string        `yaml:"consumer_group" env:"CONSUMER_GROUP" env-default:"go-crud-api" validate:"required"`
 }
 
 func (c KafkaConfig) BrokerList() []string {
