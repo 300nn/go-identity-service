@@ -15,13 +15,13 @@ type Config struct {
 }
 
 type Consumer struct {
-	client           *kgo.Client
-	handler          EventHandler
-	idempotencyStore IdempotencyStore
-	logger           *slog.Logger
+	client    *kgo.Client
+	handler   EventHandler
+	txFactory TxFactory
+	logger    *slog.Logger
 }
 
-func NewConsumer(cfg Config, handler EventHandler, store IdempotencyStore, logger *slog.Logger) (*Consumer, error) {
+func NewConsumer(cfg Config, handler EventHandler, txFactory TxFactory, logger *slog.Logger) (*Consumer, error) {
 	if len(cfg.Brokers) == 0 {
 		return nil, fmt.Errorf("kafka brokers are required")
 	}
@@ -30,6 +30,12 @@ func NewConsumer(cfg Config, handler EventHandler, store IdempotencyStore, logge
 	}
 	if cfg.ConsumerGroup == "" {
 		return nil, fmt.Errorf("kafka consumer group is required")
+	}
+	if handler == nil {
+		return nil, fmt.Errorf("kafka event handler is required")
+	}
+	if txFactory == nil {
+		return nil, fmt.Errorf("kafka consumer tx factory is required")
 	}
 
 	client, err := kgo.NewClient(
@@ -45,10 +51,10 @@ func NewConsumer(cfg Config, handler EventHandler, store IdempotencyStore, logge
 	}
 
 	return &Consumer{
-		client:           client,
-		handler:          handler,
-		idempotencyStore: store,
-		logger:           logger,
+		client:    client,
+		handler:   handler,
+		txFactory: txFactory,
+		logger:    logger,
 	}, nil
 }
 
@@ -102,25 +108,43 @@ func (c *Consumer) processRecord(ctx context.Context, record *kgo.Record) error 
 		return err
 	}
 
-	processed, err := c.idempotencyStore.WasProcessed(ctx, event.EventID)
+	var duplicate bool
+
+	err = c.txFactory.WithinTx(ctx, func(stores TxStores) error {
+		processed, err := stores.IdempotencyStore.WasProcessed(ctx, event.EventID)
+		if err != nil {
+			return err
+		}
+
+		if processed {
+			duplicate = true
+			return nil
+		}
+
+		if err := c.handler.Handle(ctx, event, stores); err != nil {
+			return err
+		}
+
+		if err := stores.IdempotencyStore.MarkProcessed(ctx, event); err != nil {
+			return err
+		}
+
+		return nil
+	})
 
 	if err != nil {
 		return err
 	}
 
-	if processed {
-		if err := c.client.CommitRecords(ctx, record); err != nil {
-			return fmt.Errorf("commit duplicated kafka record: %w", err)
-		}
-		return nil
-	}
-
-	if err := c.handler.Handle(ctx, event); err != nil {
-		return err
-	}
-
-	if err := c.idempotencyStore.MarkProcessed(ctx, event); err != nil {
-		return err
+	if duplicate {
+		c.logger.Info(
+			"kafka event already processed",
+			"event_id", event.EventID,
+			"event_type", event.EventType,
+			"topic", event.Topic,
+			"partition", event.Partition,
+			"offset", event.Offset,
+		)
 	}
 
 	if err := c.client.CommitRecords(ctx, record); err != nil {

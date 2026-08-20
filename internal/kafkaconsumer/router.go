@@ -19,12 +19,12 @@ func (r *Router) Register(eventType string, handler EventHandler) {
 	r.handlers[eventType] = handler
 }
 
-func (r *Router) Handle(ctx context.Context, event Event) error {
+func (r *Router) Handle(ctx context.Context, event Event, stores TxStores) error {
 	handler, ok := r.handlers[event.EventType]
 
 	if !ok {
 		return fmt.Errorf("no handler registered for event type %s", event.EventType)
 	}
 
-	return handler.Handle(ctx, event)
+	return handler.Handle(ctx, event, stores)
 }

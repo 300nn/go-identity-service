@@ -129,6 +129,7 @@ func cleanPostgres(t *testing.T, pool *pgxpool.Pool) {
 
 	const query = `
 		TRUNCATE TABLE
+		    user_audit_events,
 		    processed_kafka_events,
 			outbox_events,
 			refresh_tokens,

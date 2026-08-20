@@ -290,7 +290,7 @@ func initKafkaConsumerModule(
 	log *slog.Logger,
 	cfg *config.Config,
 ) (ShutdownFunc, error) {
-	idempotencyStore := kafkaconsumer.NewPostgresIdempotencyStore(dbPool)
+	txFactory := kafkaconsumer.NewPostgresTxFactory(dbPool)
 
 	router := kafkaconsumer.NewRouter()
 	router.Register(
@@ -305,7 +305,7 @@ func initKafkaConsumerModule(
 			ConsumerGroup: cfg.Kafka.ConsumerGroup,
 		},
 		router,
-		idempotencyStore,
+		txFactory,
 		log,
 	)
 

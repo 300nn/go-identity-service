@@ -16,7 +16,7 @@ func TestRouter_Handle_RoutesByEventType(t *testing.T) {
 		EventID:   "1",
 		EventType: "user.registered",
 		Payload:   []byte(`{"userId":1}`),
-	})
+	}, kafkaconsumer.TxStores{})
 	if err != nil {
 		t.Fatalf("Handle returned error: %v", err)
 	}
