@@ -7,6 +7,7 @@ import (
 	"CrudTutorialProject/internal/grpcapi"
 	"CrudTutorialProject/internal/httpserver"
 	"CrudTutorialProject/internal/kafkaconsumer"
+	appmetrics "CrudTutorialProject/internal/metrics"
 	"CrudTutorialProject/internal/middleware"
 	"CrudTutorialProject/internal/outbox"
 	"CrudTutorialProject/internal/postgres"
@@ -26,6 +27,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -37,6 +40,14 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	var shuttingDown atomic.Bool
 
 	mux := http.NewServeMux()
+
+	promRegistry := prometheus.NewRegistry()
+	metrics := appmetrics.New(promRegistry)
+
+	mux.Handle("GET /metrics", promhttp.HandlerFor(
+		promRegistry,
+		promhttp.HandlerOpts{},
+	))
 
 	dbPool, err := postgres.NewPool(ctx, &cfg.Database)
 
@@ -75,14 +86,19 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	userTxFactory := user.NewPostgresTxRepositoryFactory(dbPool)
 	userCache := user.NewRedisCache(redisClient, "go-crud")
+	observedUserCache := user.NewObservedCache(
+		userCache,
+		appmetrics.NewCacheObserver(metrics),
+		"user",
+	)
 	userService := user.NewService(
 		userRepo,
 		userTxFactory,
 		hasher,
-		user.WithCache(userCache, cfg.Cache.UserTTL),
+		user.WithCache(observedUserCache, cfg.Cache.UserTTL),
 	)
 
-	grpcShutdown, err := initGRPCModule(cfg, log, userService, tokenManager)
+	grpcShutdown, err := initGRPCModule(cfg, log, userService, tokenManager, metrics)
 	if err != nil {
 		return err
 	}
@@ -90,13 +106,13 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	initUserModule(mux, log, userService, validator, authMiddleware)
 
-	consumerShutdown, err := initKafkaConsumerModule(dbPool, log, cfg)
+	consumerShutdown, err := initKafkaConsumerModule(dbPool, log, cfg, metrics)
 	if err != nil {
 		return err
 	}
 	defer consumerShutdown()
 
-	outboxShutdown, err := initOutboxModule(dbPool, log, cfg)
+	outboxShutdown, err := initOutboxModule(dbPool, log, cfg, metrics)
 	if err != nil {
 		return err
 	}
@@ -105,6 +121,7 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	handler := middleware.Chain(
 		mux,
 		middleware.RequestId,
+		middleware.Metrics(metrics),
 		middleware.Logging(log),
 		middleware.Recovery(log),
 	)
@@ -243,6 +260,7 @@ func initOutboxModule(
 	dbPool *pgxpool.Pool,
 	log *slog.Logger,
 	cfg *config.Config,
+	metrics *appmetrics.Metrics,
 ) (ShutdownFunc, error) {
 
 	outboxRepo := outbox.NewPostgresRepository(dbPool)
@@ -265,6 +283,7 @@ func initOutboxModule(
 		kafkaPublisher,
 		log,
 		cfg.Worker,
+		outbox.WithObserver(appmetrics.NewOutboxObserver(metrics)),
 	)
 
 	go func() {
@@ -300,6 +319,7 @@ func initKafkaConsumerModule(
 	dbPool *pgxpool.Pool,
 	log *slog.Logger,
 	cfg *config.Config,
+	metrics *appmetrics.Metrics,
 ) (ShutdownFunc, error) {
 	txFactory := kafkaconsumer.NewPostgresTxFactory(dbPool)
 
@@ -318,6 +338,7 @@ func initKafkaConsumerModule(
 		router,
 		txFactory,
 		log,
+		kafkaconsumer.WithObserver(appmetrics.NewKafkaConsumerObserver(metrics)),
 	)
 
 	if err != nil {
@@ -359,6 +380,7 @@ func initGRPCModule(
 	log *slog.Logger,
 	userService *user.Service,
 	tokenManager *auth.TokenManager,
+	metrics *appmetrics.Metrics,
 ) (ShutdownFunc, error) {
 	listener, err := net.Listen("tcp", cfg.GRPC.Address())
 
@@ -367,9 +389,13 @@ func initGRPCModule(
 	}
 
 	authInterceptor := grpcapi.NewAuthInterceptor(tokenManager)
+	metricsInterceptor := grpcapi.NewMetricsInterceptor(metrics)
 
 	grpcServer := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(authInterceptor.Unary()),
+		grpc.ChainUnaryInterceptor(
+			authInterceptor.Unary(),
+			metricsInterceptor.Unary(),
+		),
 	)
 
 	userapiv1.RegisterUserServiceServer(

@@ -15,20 +15,44 @@ type WorkerConfig struct {
 	ProcessTimeout time.Duration `yaml:"process_timeout" env:"PROCESS_TIMEOUT" env-default:"30s" validate:"gt=0"`
 }
 
+type WorkerOption func(*Worker)
+
+func WithObserver(observer Observer) WorkerOption {
+	return func(w *Worker) {
+		if observer != nil {
+			w.observer = observer
+		}
+	}
+}
+
 type Worker struct {
 	store     Store
 	publisher Publisher
 	logger    *slog.Logger
 	cfg       WorkerConfig
+	observer  Observer
 }
 
-func NewWorker(store Store, publisher Publisher, logger *slog.Logger, cfg WorkerConfig) *Worker {
-	return &Worker{
+func NewWorker(
+	store Store,
+	publisher Publisher,
+	logger *slog.Logger,
+	cfg WorkerConfig,
+	opts ...WorkerOption,
+) *Worker {
+	worker := &Worker{
 		store:     store,
 		publisher: publisher,
 		logger:    logger,
 		cfg:       cfg,
+		observer:  NoopObserver{},
 	}
+
+	for _, opt := range opts {
+		opt(worker)
+	}
+
+	return worker
 }
 
 func (w *Worker) Run(ctx context.Context) error {
@@ -97,12 +121,15 @@ func (w *Worker) processEvent(ctx context.Context, event Event) error {
 			return fmt.Errorf("publish failed: %w; mark failed: %v", err, markErr)
 		}
 
+		w.observer.EventFailed(event.EventType)
 		return err
 	}
 
 	if err := w.store.MarkProcessed(ctx, event.ID); err != nil {
+		w.observer.EventFailed(event.EventType)
 		return fmt.Errorf("mark processed: %w", err)
 	}
 
+	w.observer.EventProcessed(event.EventType)
 	return nil
 }

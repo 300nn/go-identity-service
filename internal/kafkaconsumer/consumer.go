@@ -14,14 +14,25 @@ type Config struct {
 	ConsumerGroup string
 }
 
+type ConsumerOption func(*Consumer)
+
+func WithObserver(observer Observer) ConsumerOption {
+	return func(c *Consumer) {
+		if observer != nil {
+			c.observer = observer
+		}
+	}
+}
+
 type Consumer struct {
 	client    *kgo.Client
 	handler   EventHandler
 	txFactory TxFactory
 	logger    *slog.Logger
+	observer  Observer
 }
 
-func NewConsumer(cfg Config, handler EventHandler, txFactory TxFactory, logger *slog.Logger) (*Consumer, error) {
+func NewConsumer(cfg Config, handler EventHandler, txFactory TxFactory, logger *slog.Logger, opts ...ConsumerOption) (*Consumer, error) {
 	if len(cfg.Brokers) == 0 {
 		return nil, fmt.Errorf("kafka brokers are required")
 	}
@@ -50,12 +61,19 @@ func NewConsumer(cfg Config, handler EventHandler, txFactory TxFactory, logger *
 		return nil, fmt.Errorf("create kafka client: %w", err)
 	}
 
-	return &Consumer{
+	cons := &Consumer{
 		client:    client,
 		handler:   handler,
 		txFactory: txFactory,
 		logger:    logger,
-	}, nil
+		observer:  NoopObserver{},
+	}
+
+	for _, opt := range opts {
+		opt(cons)
+	}
+
+	return cons, nil
 }
 
 func (c *Consumer) Run(ctx context.Context) error {
@@ -87,6 +105,7 @@ func (c *Consumer) processFetches(ctx context.Context, fetches kgo.Fetches) {
 	fetches.EachPartition(func(partition kgo.FetchTopicPartition) {
 		for _, record := range partition.Records {
 			if err := c.processRecord(ctx, record); err != nil {
+				c.observer.EventFailed(eventTypeFromRecord(record))
 				c.logger.Error(
 					"kafka record processing failed",
 					"topic", record.Topic,
@@ -97,6 +116,7 @@ func (c *Consumer) processFetches(ctx context.Context, fetches kgo.Fetches) {
 
 				return
 			}
+			c.observer.EventProcessed(eventTypeFromRecord(record))
 		}
 	})
 }
@@ -214,4 +234,13 @@ func eventFromRecord(record *kgo.Record) (Event, error) {
 
 func (c *Consumer) Close() {
 	c.client.Close()
+}
+
+func eventTypeFromRecord(record *kgo.Record) string {
+	for _, header := range record.Headers {
+		if header.Key == "event_type" {
+			return string(header.Value)
+		}
+	}
+	return "unknown"
 }
