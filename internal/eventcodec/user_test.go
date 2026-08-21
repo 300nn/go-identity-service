@@ -25,15 +25,15 @@ func TestMarshalAndUnmarshalUserRegistered(t *testing.T) {
 		t.Fatalf("UnmarshalUserRegistered() error = %v", err)
 	}
 
-	if payload.UserId != 123 {
-		t.Fatalf("expected payload.UserId to be 123, got %d", payload.UserId)
+	if payload.GetUserId() != 123 {
+		t.Fatalf("expected user id 123, got %d", payload.GetUserId())
 	}
 
-	if payload.Email != "t@ex.com" {
-		t.Fatalf("expected payload.Email to be t@ex.com, got %s", payload.Email)
+	if payload.GetEmail() != "t@ex.com" {
+		t.Fatalf("expected payload.Email to be t@ex.com, got %s", payload.GetEmail())
 	}
 
-	if payload.Role != "USER" {
-		t.Fatalf("expected payload.Role to be USER, got %s", payload.Role)
+	if payload.GetRole() != "USER" {
+		t.Fatalf("expected payload.Role to be USER, got %s", payload.GetRole())
 	}
 }

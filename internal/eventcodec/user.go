@@ -11,7 +11,7 @@ const (
 	ContentTypeProtobuf = "application/x-protobuf"
 
 	ProtoMessageUserRegistered = "events.user.v1.UserRegistered"
-	EventVerionsV1             = "v1"
+	EventVersionV1             = "v1"
 )
 
 func MarshalUserRegistered(userID int64, email string, role string) ([]byte, error) {

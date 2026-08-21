@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"CrudTutorialProject/internal/eventcodec"
 	"CrudTutorialProject/internal/outbox"
 	"CrudTutorialProject/internal/user"
 	"context"
@@ -97,11 +98,11 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 			return err
 		}
 
-		payload, err := outbox.MarshalPayload(outbox.UserRegisteredPayload{
-			UserID: created.ID,
-			Email:  created.Email,
-			Role:   string(created.Role),
-		})
+		payload, err := eventcodec.MarshalUserRegistered(
+			created.ID,
+			created.Email,
+			string(created.Role),
+		)
 
 		if err != nil {
 			return err
@@ -112,6 +113,9 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 			AggregateType: outbox.AggregateUser,
 			AggregateID:   strconv.FormatInt(created.ID, 10),
 			Payload:       payload,
+			ContentType:   eventcodec.ContentTypeProtobuf,
+			ProtoMessage:  eventcodec.ProtoMessageUserRegistered,
+			EventVersion:  eventcodec.EventVersionV1,
 		})
 
 		if err != nil {

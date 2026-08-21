@@ -1,6 +1,7 @@
 package outbox_test
 
 import (
+	"CrudTutorialProject/internal/eventcodec"
 	"CrudTutorialProject/internal/outbox"
 	"io"
 	"log/slog"
@@ -33,16 +34,25 @@ func discardLogger(t *testing.T) *slog.Logger {
 func TestWorker_ProcessOnce_PublishesAndMarksProcessed(t *testing.T) {
 	ctx := t.Context()
 
+	payload, err := eventcodec.MarshalUserRegistered(1, "alex@example.com", "USER")
+	if err != nil {
+		t.Fatalf("MarshalUserRegistered returned error: %v", err)
+	}
+
+	event := outbox.Event{
+		ID:            1,
+		EventType:     outbox.EventTypeUserRegistered,
+		AggregateType: outbox.AggregateUser,
+		AggregateID:   "1",
+		Payload:       payload,
+		ContentType:   eventcodec.ContentTypeProtobuf,
+		ProtoMessage:  eventcodec.ProtoMessageUserRegistered,
+		EventVersion:  eventcodec.EventVersionV1,
+	}
+
 	store := &fakeStore{
 		events: []outbox.Event{
-			{
-				ID:            1,
-				EventType:     outbox.EventTypeUserRegistered,
-				AggregateType: outbox.AggregateUser,
-				AggregateID:   "1",
-				Payload:       `{"userId":1}`,
-				Status:        outbox.StatusProcessing,
-			},
+			event,
 		},
 	}
 
@@ -74,16 +84,25 @@ func TestWorker_ProcessOnce_PublishesAndMarksProcessed(t *testing.T) {
 func TestWorker_ProcessOnce_PublishFails_MarksFailed(t *testing.T) {
 	ctx := t.Context()
 
+	payload, err := eventcodec.MarshalUserRegistered(1, "alex@example.com", "USER")
+	if err != nil {
+		t.Fatalf("MarshalUserRegistered returned error: %v", err)
+	}
+
+	event := outbox.Event{
+		ID:            1,
+		EventType:     outbox.EventTypeUserRegistered,
+		AggregateType: outbox.AggregateUser,
+		AggregateID:   "1",
+		Payload:       payload,
+		ContentType:   eventcodec.ContentTypeProtobuf,
+		ProtoMessage:  eventcodec.ProtoMessageUserRegistered,
+		EventVersion:  eventcodec.EventVersionV1,
+	}
+
 	store := &fakeStore{
 		events: []outbox.Event{
-			{
-				ID:            1,
-				EventType:     outbox.EventTypeUserRegistered,
-				AggregateType: outbox.AggregateUser,
-				AggregateID:   "1",
-				Payload:       `{"userId":1}`,
-				Status:        outbox.StatusProcessing,
-			},
+			event,
 		},
 	}
 
@@ -129,16 +148,25 @@ func TestWorker_ProcessOnce_FetchBatchFails(t *testing.T) {
 func TestWorker_ProcessOnce_MarkProcessedFails(t *testing.T) {
 	ctx := t.Context()
 
+	payload, err := eventcodec.MarshalUserRegistered(1, "alex@example.com", "USER")
+	if err != nil {
+		t.Fatalf("MarshalUserRegistered returned error: %v", err)
+	}
+
+	event := outbox.Event{
+		ID:            1,
+		EventType:     outbox.EventTypeUserRegistered,
+		AggregateType: outbox.AggregateUser,
+		AggregateID:   "1",
+		Payload:       payload,
+		ContentType:   eventcodec.ContentTypeProtobuf,
+		ProtoMessage:  eventcodec.ProtoMessageUserRegistered,
+		EventVersion:  eventcodec.EventVersionV1,
+	}
+
 	store := &fakeStore{
 		events: []outbox.Event{
-			{
-				ID:            1,
-				EventType:     outbox.EventTypeUserRegistered,
-				AggregateType: outbox.AggregateUser,
-				AggregateID:   "1",
-				Payload:       `{"userId":1}`,
-				Status:        outbox.StatusProcessing,
-			},
+			event,
 		},
 		markProcessedErr: errMarkProcessedFailed,
 	}

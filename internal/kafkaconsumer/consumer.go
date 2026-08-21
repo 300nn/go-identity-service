@@ -182,11 +182,29 @@ func eventFromRecord(record *kgo.Record) (Event, error) {
 		return Event{}, fmt.Errorf("kafka record missing aggregate_id header")
 	}
 
+	contentType := headers["content_type"]
+	if contentType == "" {
+		return Event{}, fmt.Errorf("kafka record missing content_type header")
+	}
+
+	protoMessage := headers["proto_message"]
+	if contentType == "application/x-protobuf" && protoMessage == "" {
+		return Event{}, fmt.Errorf("kafka protobuf record missing proto_message header")
+	}
+
+	eventVersion := headers["event_version"]
+	if eventVersion == "" {
+		return Event{}, fmt.Errorf("kafka record missing event_version header")
+	}
+
 	return Event{
 		EventID:       eventID,
 		EventType:     eventType,
 		AggregateType: aggregateType,
 		AggregateID:   aggregateID,
+		ContentType:   contentType,
+		ProtoMessage:  protoMessage,
+		EventVersion:  eventVersion,
 		Payload:       record.Value,
 		Topic:         record.Topic,
 		Partition:     record.Partition,

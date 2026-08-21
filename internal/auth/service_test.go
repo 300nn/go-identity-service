@@ -593,7 +593,7 @@ func TestService_Register_CreatesOutboxEvent(t *testing.T) {
 		t.Fatalf("expected aggregate id %d, got %s", result.User.ID, event.AggregateID)
 	}
 
-	if event.Payload == "" {
+	if len(event.Payload) == 0 {
 		t.Fatal("expected event payload to be set")
 	}
 }

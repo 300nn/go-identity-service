@@ -2,6 +2,7 @@ package kafkaconsumer
 
 import (
 	"CrudTutorialProject/internal/audit"
+	"CrudTutorialProject/internal/eventcodec"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -25,17 +26,38 @@ func NewUserRegisteredHandler(logger *slog.Logger) *UserRegisteredHandler {
 }
 
 func (h *UserRegisteredHandler) Handle(ctx context.Context, event Event, stores TxStores) error {
-	var payload UserRegisteredPayload
-
-	if err := json.Unmarshal(event.Payload, &payload); err != nil {
-		return fmt.Errorf("unmarshal user registered payload: %w", err)
+	if event.ContentType != eventcodec.ContentTypeProtobuf {
+		return fmt.Errorf("unsupported user registered content type %q", event.ContentType)
 	}
 
-	_, err := stores.UserAuditStore.CreateUserAuditEvent(ctx, audit.UserAuditEvent{
+	if event.ProtoMessage != eventcodec.ProtoMessageUserRegistered {
+		return fmt.Errorf("unsupported user registered proto message %q", event.ProtoMessage)
+	}
+
+	if event.EventVersion != eventcodec.EventVersionV1 {
+		return fmt.Errorf("unsupported user registered event version %q", event.EventVersion)
+	}
+
+	payload, err := eventcodec.UnmarshalUserRegistered(event.Payload)
+	if err != nil {
+		return err
+	}
+
+	auditPayload, err := json.Marshal(UserRegisteredPayload{
+		UserID: payload.UserId,
+		Email:  payload.Email,
+		Role:   payload.Role,
+	})
+
+	if err != nil {
+		return fmt.Errorf("marshal user registered audit payload: %w", err)
+	}
+
+	_, err = stores.UserAuditStore.CreateUserAuditEvent(ctx, audit.UserAuditEvent{
 		SourceEventID: event.EventID,
-		UserID:        payload.UserID,
+		UserID:        payload.UserId,
 		EventType:     event.EventType,
-		Payload:       string(event.Payload),
+		Payload:       string(auditPayload),
 	})
 
 	if err != nil {
@@ -45,7 +67,7 @@ func (h *UserRegisteredHandler) Handle(ctx context.Context, event Event, stores 
 	h.logger.Info(
 		"user registered event consumed",
 		"event_id", event.EventID,
-		"user_id", payload.UserID,
+		"user_id", payload.UserId,
 		"email", payload.Email,
 		"role", payload.Role,
 	)

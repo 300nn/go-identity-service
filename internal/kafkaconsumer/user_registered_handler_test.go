@@ -2,6 +2,7 @@ package kafkaconsumer_test
 
 import (
 	"CrudTutorialProject/internal/audit"
+	"CrudTutorialProject/internal/eventcodec"
 	"CrudTutorialProject/internal/kafkaconsumer"
 	"CrudTutorialProject/internal/testutils"
 	"io"
@@ -18,18 +19,30 @@ func TestUserRegisteredHandler_Handle_CreateAuditEvent(t *testing.T) {
 
 	handler := kafkaconsumer.NewUserRegisteredHandler(discardLogger())
 
+	payload, err := eventcodec.MarshalUserRegistered(
+		123,
+		"alex@example.com",
+		"USER",
+	)
+	if err != nil {
+		t.Fatalf("MarshalUserRegistered returned error: %v", err)
+	}
+
 	event := kafkaconsumer.Event{
 		EventID:       "event-1",
 		EventType:     "user.registered",
 		AggregateType: "user",
 		AggregateID:   "123",
-		Payload:       []byte(`{"userId":123,"email":"alex@example.com","role":"USER"}`),
+		ContentType:   eventcodec.ContentTypeProtobuf,
+		ProtoMessage:  eventcodec.ProtoMessageUserRegistered,
+		EventVersion:  eventcodec.EventVersionV1,
+		Payload:       payload,
 		Topic:         "outbox.events",
 		Partition:     0,
 		Offset:        1,
 	}
 
-	err := txFactory.WithinTx(ctx, func(stores kafkaconsumer.TxStores) error {
+	err = txFactory.WithinTx(ctx, func(stores kafkaconsumer.TxStores) error {
 		if err := handler.Handle(ctx, event, stores); err != nil {
 			return err
 		}
@@ -61,18 +74,30 @@ func TestUserRegisteredHandler_Handle_RollbackAuditEvent(t *testing.T) {
 
 	handler := kafkaconsumer.NewUserRegisteredHandler(discardLogger())
 
+	payload, err := eventcodec.MarshalUserRegistered(
+		123,
+		"alex@example.com",
+		"USER",
+	)
+	if err != nil {
+		t.Fatalf("MarshalUserRegistered returned error: %v", err)
+	}
+
 	event := kafkaconsumer.Event{
 		EventID:       "event-1",
 		EventType:     "user.registered",
 		AggregateType: "user",
 		AggregateID:   "123",
-		Payload:       []byte(`{"userId":123,"email":"alex@example.com","role":"USER"}`),
+		ContentType:   eventcodec.ContentTypeProtobuf,
+		ProtoMessage:  eventcodec.ProtoMessageUserRegistered,
+		EventVersion:  eventcodec.EventVersionV1,
+		Payload:       payload,
 		Topic:         "outbox.events",
 		Partition:     0,
 		Offset:        1,
 	}
 
-	err := txFactory.WithinTx(ctx, func(stores kafkaconsumer.TxStores) error {
+	err = txFactory.WithinTx(ctx, func(stores kafkaconsumer.TxStores) error {
 		if err := handler.Handle(ctx, event, stores); err != nil {
 			return err
 		}

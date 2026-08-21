@@ -59,12 +59,15 @@ func (p *KafkaPublisher) Publish(ctx context.Context, event Event) error {
 	record := kgo.Record{
 		Topic: p.topic,
 		Key:   []byte(event.AggregateType + ":" + event.AggregateID),
-		Value: []byte(event.Payload),
+		Value: event.Payload,
 		Headers: []kgo.RecordHeader{
 			{Key: "event_id", Value: []byte(strconv.FormatInt(event.ID, 10))},
 			{Key: "event_type", Value: []byte(event.EventType)},
 			{Key: "aggregate_type", Value: []byte(event.AggregateType)},
 			{Key: "aggregate_id", Value: []byte(event.AggregateID)},
+			{Key: "content_type", Value: []byte(event.ContentType)},
+			{Key: "proto_message", Value: []byte(event.ProtoMessage)},
+			{Key: "event_version", Value: []byte(event.EventVersion)},
 		},
 		Timestamp: event.CreatedAt,
 	}

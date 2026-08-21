@@ -16,6 +16,11 @@ const (
 )
 
 const (
+	ContentTypeJSON     = "application/json"
+	ContentTypeProtobuf = "application/x-protobuf"
+)
+
+const (
 	EventTypeUserRegistered = "user.registered"
 	EventTypeUserUpdated    = "user.updated"
 	EventTypeUserDeleted    = "user.deleted"
@@ -26,11 +31,16 @@ type Event struct {
 	EventType     string
 	AggregateType string
 	AggregateID   string
-	Payload       string
-	Status        Status
-	Attempts      int
-	LastError     *string
-	LockedAt      *time.Time
-	ProcessedAt   *time.Time
-	CreatedAt     time.Time
+
+	Payload      []byte
+	ContentType  string
+	ProtoMessage string
+	EventVersion string
+
+	Status      Status
+	Attempts    int
+	LastError   *string
+	LockedAt    *time.Time
+	ProcessedAt *time.Time
+	CreatedAt   time.Time
 }

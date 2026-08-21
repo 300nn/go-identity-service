@@ -27,19 +27,25 @@ func NewPostgresRepository(db DBTX) *PostgresRepository {
 
 func (r *PostgresRepository) Create(ctx context.Context, event Event) (Event, error) {
 	const query = `
-		insert into outbox_events (
+		INSERT INTO outbox_events (
 		    event_type,
-		    aggregate_type, 
+		    aggregate_type,
 		    aggregate_id,
-		    payload
+		    payload_bytes,
+		    content_type,
+		    proto_message,
+		    event_version
 		)
-		values ($1, $2, $3, $4::jsonb)
-		returning 
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING
 		    id,
 		    event_type,
 		    aggregate_type,
 		    aggregate_id,
-		    payload::text,
+		    payload_bytes,
+		    content_type,
+		    proto_message,
+		    event_version,
 		    status,
 		    attempts,
 		    last_error,
@@ -48,7 +54,17 @@ func (r *PostgresRepository) Create(ctx context.Context, event Event) (Event, er
 		    created_at
 	`
 
-	created, err := scanEvent(r.db.QueryRow(ctx, query, event.EventType, event.AggregateType, event.AggregateID, event.Payload))
+	created, err := scanEvent(r.db.QueryRow(
+		ctx,
+		query,
+		event.EventType,
+		event.AggregateType,
+		event.AggregateID,
+		event.Payload,
+		event.ContentType,
+		event.ProtoMessage,
+		event.EventVersion,
+	))
 
 	if err != nil {
 		return Event{}, fmt.Errorf("insert outbox event: %w", err)
@@ -83,18 +99,21 @@ func (r *PostgresRepository) FetchBatch(ctx context.Context, limit int, lockTime
 		    limit $1
 		    for update skip locked 
 		)
-		returning 
+		RETURNING
 			id,
-		    event_type,
-		    aggregate_type,
-		    aggregate_id,
-		    payload::text,
-		    status,
-		    attempts,
-		    last_error,
-		    locked_at,
-		    processed_at,
-		    created_at
+			event_type,
+			aggregate_type,
+			aggregate_id,
+			payload_bytes,
+			content_type,
+			proto_message,
+			event_version,
+			status,
+			attempts,
+			last_error,
+			locked_at,
+			processed_at,
+			created_at
 		`
 
 	rows, err := r.db.Query(ctx, query, limit, lockedBefore)
@@ -178,6 +197,9 @@ func scanEvent(row pgx.Row) (Event, error) {
 		&event.AggregateType,
 		&event.AggregateID,
 		&event.Payload,
+		&event.ContentType,
+		&event.ProtoMessage,
+		&event.EventVersion,
 		&event.Status,
 		&event.Attempts,
 		&event.LastError,
@@ -202,6 +224,9 @@ func scanEventFromRows(rows pgx.Rows) (Event, error) {
 		&event.AggregateType,
 		&event.AggregateID,
 		&event.Payload,
+		&event.ContentType,
+		&event.ProtoMessage,
+		&event.EventVersion,
 		&event.Status,
 		&event.Attempts,
 		&event.LastError,
