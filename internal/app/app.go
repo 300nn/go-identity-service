@@ -30,6 +30,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
+	"github.com/twmb/franz-go/pkg/kgo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -68,6 +69,12 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		}
 	}(redisClient)
 
+	kafkaHealthClient, err := newKafkaHealthClient(cfg)
+	if err != nil {
+		return err
+	}
+	defer kafkaHealthClient.Close()
+
 	tokenManager := auth.NewTokenManager(
 		cfg.Auth.JWTSecret,
 		cfg.Auth.AccessTokenTTL,
@@ -80,7 +87,19 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	hasher := auth.NewPasswordHasher()
 
-	initHealthModule(mux, dbPool, log, &shuttingDown, cfg)
+	redisPinger := PingerFunc(func(ctx context.Context) error {
+		return redisClient.Ping(ctx).Err()
+	})
+
+	initHealthModule(
+		mux,
+		dbPool,
+		redisPinger,
+		kafkaHealthClient,
+		log,
+		&shuttingDown,
+		cfg,
+	)
 
 	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, hasher, dbPool, redisClient, tokenManager)
 
@@ -164,8 +183,16 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	return nil
 }
 
-func initHealthModule(mux *http.ServeMux, dbPool *pgxpool.Pool, log *slog.Logger, shuttingDown *atomic.Bool, cfg *config.Config) {
-	healthHandlers := NewHealthHandlers(dbPool, log, shuttingDown)
+func initHealthModule(
+	mux *http.ServeMux,
+	dbPool Pinger,
+	redisClient Pinger,
+	kafkaClient Pinger,
+	log *slog.Logger,
+	shuttingDown *atomic.Bool,
+	cfg *config.Config,
+) {
+	healthHandlers := NewHealthHandlers(dbPool, redisClient, kafkaClient, log, shuttingDown)
 
 	mux.HandleFunc("GET /ready", healthHandlers.Ready)
 
@@ -393,8 +420,8 @@ func initGRPCModule(
 
 	grpcServer := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
-			authInterceptor.Unary(),
 			metricsInterceptor.Unary(),
+			authInterceptor.Unary(),
 		),
 	)
 
@@ -442,4 +469,21 @@ func initGRPCModule(
 	}
 
 	return shutdown, nil
+}
+
+func newKafkaHealthClient(cfg *config.Config) (*kgo.Client, error) {
+	brokers := cfg.Kafka.BrokerList()
+	if len(brokers) == 0 {
+		return nil, fmt.Errorf("kafka brokers are required")
+	}
+
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(brokers...),
+		kgo.ClientID("go-crud-api-health"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create kafka health client: %w", err)
+	}
+
+	return client, nil
 }
