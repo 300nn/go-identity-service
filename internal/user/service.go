@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/mail"
 	"strings"
 	"time"
@@ -121,7 +122,9 @@ func (s *Service) CreateUser(ctx context.Context, request CreateUserInput) (User
 	}
 
 	if s.cache != nil {
-		_ = s.cache.SetUser(ctx, created, s.cacheTTL)
+		if err := s.cache.DeleteUser(ctx, created.ID); err != nil {
+			slog.Warn("failed to invalidate cache", slog.Any("error", err))
+		}
 	}
 
 	return created, nil
@@ -225,7 +228,9 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, user UpdateUserInput
 	}
 
 	if s.cache != nil {
-		_ = s.cache.SetUser(ctx, updated, s.cacheTTL)
+		if err := s.cache.DeleteUser(ctx, id); err != nil {
+			slog.Warn("failed to invalidate cache", slog.Any("error", err))
+		}
 	}
 
 	return updated, nil
@@ -345,7 +350,9 @@ func (s *Service) CreateUserWithProfile(ctx context.Context, input CreateUserWit
 	}
 
 	if s.cache != nil {
-		_ = s.cache.SetUser(ctx, res.User, s.cacheTTL)
+		if err := s.cache.DeleteUser(ctx, res.User.ID); err != nil {
+			slog.Warn("failed to invalidate cache", slog.Any("error", err))
+		}
 	}
 
 	return res, nil

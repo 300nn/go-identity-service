@@ -98,12 +98,6 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		user.WithCache(observedUserCache, cfg.Cache.UserTTL),
 	)
 
-	grpcShutdown, err := initGRPCModule(cfg, log, userService, tokenManager, metrics)
-	if err != nil {
-		return err
-	}
-	defer grpcShutdown()
-
 	initUserModule(mux, log, userService, validator, authMiddleware)
 
 	consumerShutdown, err := initKafkaConsumerModule(dbPool, log, cfg, metrics)
@@ -117,6 +111,12 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 	defer outboxShutdown()
+
+	grpcShutdown, err := initGRPCModule(cfg, log, userService, tokenManager, metrics)
+	if err != nil {
+		return err
+	}
+	defer grpcShutdown()
 
 	handler := middleware.Chain(
 		mux,
