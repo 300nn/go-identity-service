@@ -3,6 +3,8 @@ package app
 import (
 	"CrudTutorialProject/internal/auth"
 	"CrudTutorialProject/internal/config"
+	userapiv1 "CrudTutorialProject/internal/gen/api/user/v1"
+	"CrudTutorialProject/internal/grpcapi"
 	"CrudTutorialProject/internal/httpserver"
 	"CrudTutorialProject/internal/kafkaconsumer"
 	"CrudTutorialProject/internal/middleware"
@@ -17,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -24,6 +27,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 type ShutdownFunc func()
@@ -52,6 +57,12 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		}
 	}(redisClient)
 
+	tokenManager := auth.NewTokenManager(
+		cfg.Auth.JWTSecret,
+		cfg.Auth.AccessTokenTTL,
+		cfg.App.Name,
+	)
+
 	userRepo := user.NewPostgresRepository(dbPool)
 
 	validator := validation.New()
@@ -60,9 +71,24 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	initHealthModule(mux, dbPool, log, &shuttingDown, cfg)
 
-	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, hasher, dbPool, redisClient)
+	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, hasher, dbPool, redisClient, tokenManager)
 
-	initUserModule(mux, log, dbPool, userRepo, validator, authMiddleware, hasher, redisClient, cfg)
+	userTxFactory := user.NewPostgresTxRepositoryFactory(dbPool)
+	userCache := user.NewRedisCache(redisClient, "go-crud")
+	userService := user.NewService(
+		userRepo,
+		userTxFactory,
+		hasher,
+		user.WithCache(userCache, cfg.Cache.UserTTL),
+	)
+
+	grpcShutdown, err := initGRPCModule(cfg, log, userService, tokenManager)
+	if err != nil {
+		return err
+	}
+	defer grpcShutdown()
+
+	initUserModule(mux, log, userService, validator, authMiddleware)
 
 	consumerShutdown, err := initKafkaConsumerModule(dbPool, log, cfg)
 	if err != nil {
@@ -160,21 +186,10 @@ func initHealthModule(mux *http.ServeMux, dbPool *pgxpool.Pool, log *slog.Logger
 func initUserModule(
 	mux *http.ServeMux,
 	logger *slog.Logger,
-	pool *pgxpool.Pool,
-	userRepo user.Repository,
+	userService *user.Service,
 	validator *validation.Validator,
 	ware *auth.MiddleWare,
-	hasher user.Hasher,
-	redisClient *redis.Client,
-	cfg *config.Config,
 ) {
-	txFactory := user.NewPostgresTxRepositoryFactory(pool)
-	userCache := user.NewRedisCache(redisClient, "go-crud")
-	userService := user.NewService(
-		userRepo,
-		txFactory,
-		hasher,
-		user.WithCache(userCache, cfg.Cache.UserTTL))
 	userHandler := user.NewHandler(userService, logger, validator)
 	userHandler.RegisterRoutes(
 		mux,
@@ -194,13 +209,9 @@ func initAuthModule(
 	validator *validation.Validator,
 	hasher *auth.PasswordHasher,
 	db *pgxpool.Pool,
-	redisClient *redis.Client) *auth.MiddleWare {
-
-	tokenManager := auth.NewTokenManager(
-		cfg.Auth.JWTSecret,
-		cfg.Auth.AccessTokenTTL,
-		cfg.App.Name,
-	)
+	redisClient *redis.Client,
+	tokenManager *auth.TokenManager,
+) *auth.MiddleWare {
 
 	refreshStore := auth.NewRefreshTokenRepository(db)
 
@@ -341,4 +352,68 @@ func initKafkaConsumerModule(
 	}
 
 	return shutdownFunc, nil
+}
+
+func initGRPCModule(
+	cfg *config.Config,
+	log *slog.Logger,
+	userService *user.Service,
+	tokenManager *auth.TokenManager,
+) (ShutdownFunc, error) {
+	listener, err := net.Listen("tcp", cfg.GRPC.Address())
+
+	if err != nil {
+		return nil, fmt.Errorf("create gRPC listener: %w", err)
+	}
+
+	authInterceptor := grpcapi.NewAuthInterceptor(tokenManager)
+
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(authInterceptor.Unary()),
+	)
+
+	userapiv1.RegisterUserServiceServer(
+		grpcServer,
+		grpcapi.NewUserService(userService),
+	)
+
+	if cfg.App.Environment == "local" {
+		reflection.Register(grpcServer)
+	}
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		log.Info("starting grpc server", "addr", cfg.GRPC.Address())
+
+		if err := grpcServer.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+			log.Error("gRPC server stopped with error", slog.Any("error", err))
+		}
+	}()
+
+	var shutdownOnce sync.Once
+
+	shutdown := func() {
+		shutdownOnce.Do(func() {
+			stopped := make(chan struct{})
+
+			go func() {
+				grpcServer.GracefulStop()
+				close(stopped)
+			}()
+
+			select {
+			case <-stopped:
+			case <-time.After(cfg.GRPC.ShutdownTimeout):
+				log.Warn("timeout waiting for grpc graceful stop")
+				grpcServer.Stop()
+			}
+
+			<-done
+		})
+	}
+
+	return shutdown, nil
 }

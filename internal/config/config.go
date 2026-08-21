@@ -22,6 +22,7 @@ var configValidator = validator.New(
 
 type Config struct {
 	HTTP      HTTPConfig           `yaml:"http" env-prefix:"HTTP_"`
+	GRPC      GRPCConfig           `yaml:"grpc" env-prefix:"GRPC_"`
 	Database  DatabaseConfig       `yaml:"database" env-prefix:"DATABASE_"`
 	Log       LogConfig            `yaml:"log" env-prefix:"LOG_"`
 	App       AppConfig            `yaml:"app" env-prefix:"APP_"`
@@ -50,6 +51,16 @@ type DatabaseConfig struct {
 	Password string     `yaml:"password" env:"PASSWORD"`
 	Pool     PoolConfig `yaml:"pool" env-prefix:"POOL_"`
 	SSL      string     `yaml:"ssl" env:"SSL" env-default:"disable"`
+}
+
+type GRPCConfig struct {
+	Host            string        `yaml:"host" env:"HOST" env-default:"0.0.0.0" validate:"required"`
+	Port            int           `yaml:"port" env:"PORT" env-default:"50051" validate:"gte=1,lte=65535"`
+	ShutdownTimeout time.Duration `yaml:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT" env-default:"10s" validate:"gt=0"`
+}
+
+func (g *GRPCConfig) Address() string {
+	return net.JoinHostPort(g.Host, strconv.Itoa(g.Port))
 }
 
 type PoolConfig struct {

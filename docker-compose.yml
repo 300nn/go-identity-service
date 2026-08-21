@@ -105,6 +105,10 @@ services:
       APP_NAME: go-crud-api
       APP_VERSION: local
 
+      GRPC_HOST: 0.0.0.0
+      GRPC_PORT: 50051
+      GRPC_SHUTDOWN_TIMEOUT: 10s
+
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_NAME: go_crud
@@ -141,6 +145,7 @@ services:
       LOG_LEVEL: info
     ports:
       - "8080:8080"
+      - "50051:50051"
     healthcheck:
       test: [ "CMD", "/app/healthcheck" ]
       interval: 10s

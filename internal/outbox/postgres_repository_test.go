@@ -43,7 +43,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	}
 }
 
-/*func TestPostgresRepository_Create_InvalidPayload(t *testing.T) {
+func TestPostgresRepository_Create_InvalidContentType(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
@@ -53,14 +53,14 @@ func TestPostgresRepository_Create(t *testing.T) {
 		EventType:     outbox.EventTypeUserRegistered,
 		AggregateType: outbox.AggregateUser,
 		AggregateID:   "123",
-		Payload:       []byte(`{invalid-json`),
-		ContentType:   "application/json",
+		Payload:       []byte("payload"),
+		ContentType:   "invalid/content-type",
 		EventVersion:  "v1",
 	})
 	if err == nil {
-		t.Fatal("expected error for invalid JSON payload")
+		t.Fatal("expected error for invalid content type")
 	}
-}*/
+}
 
 func TestPostgresRepository_FetchBatch(t *testing.T) {
 	ctx := t.Context()
