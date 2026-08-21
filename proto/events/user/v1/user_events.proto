@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package events.user.v1;
+
+option go_package = "CrudTutorialProject/internal/gen/events/user/v1;usereventv1";
+
+message UserRegistered {
+  int64 user_id = 1;
+  string email = 2;
+  string role = 3;
+}
