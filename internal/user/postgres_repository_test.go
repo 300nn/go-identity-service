@@ -1,14 +1,15 @@
 package user_test
 
 import (
-	"CrudTutorialProject/internal/testutils"
-	"CrudTutorialProject/internal/user"
 	"context"
 	"database/sql"
 	"errors"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"CrudTutorialProject/internal/testutils"
+	"CrudTutorialProject/internal/user"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"

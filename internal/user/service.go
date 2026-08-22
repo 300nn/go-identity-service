@@ -1,7 +1,6 @@
 package user
 
 import (
-	"CrudTutorialProject/internal/apperror"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +8,8 @@ import (
 	"net/mail"
 	"strings"
 	"time"
+
+	"CrudTutorialProject/internal/apperror"
 )
 
 type Service struct {

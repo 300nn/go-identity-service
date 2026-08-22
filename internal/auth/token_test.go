@@ -1,10 +1,11 @@
 package auth_test
 
 import (
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/user"
 	"testing"
 	"time"
+
+	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/user"
 )
 
 const testJWTSecret = "test-secret-with-at-least-32-characters"

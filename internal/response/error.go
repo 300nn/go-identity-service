@@ -1,10 +1,11 @@
 package response
 
 import (
-	"CrudTutorialProject/internal/apperror"
 	"errors"
 	"log/slog"
 	"net/http"
+
+	"CrudTutorialProject/internal/apperror"
 )
 
 type ErrorBody struct {

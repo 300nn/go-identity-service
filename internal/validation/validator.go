@@ -1,10 +1,11 @@
 package validation
 
 import (
-	"CrudTutorialProject/internal/apperror"
 	"errors"
 	"reflect"
 	"strings"
+
+	"CrudTutorialProject/internal/apperror"
 
 	"github.com/go-playground/validator/v10"
 )

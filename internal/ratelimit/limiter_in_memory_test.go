@@ -1,9 +1,10 @@
 package ratelimit_test
 
 import (
-	"CrudTutorialProject/internal/ratelimit"
 	"testing"
 	"time"
+
+	"CrudTutorialProject/internal/ratelimit"
 )
 
 func TestLimiter_Allow(t *testing.T) {

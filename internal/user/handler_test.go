@@ -1,10 +1,6 @@
 package user_test
 
 import (
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/response"
-	"CrudTutorialProject/internal/user"
-	"CrudTutorialProject/internal/validation"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +10,11 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/response"
+	"CrudTutorialProject/internal/user"
+	"CrudTutorialProject/internal/validation"
 )
 
 type testUserApp struct {

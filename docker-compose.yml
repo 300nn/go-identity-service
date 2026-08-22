@@ -100,6 +100,7 @@ services:
       HTTP_READ_TIMEOUT: 5s
       HTTP_WRITE_TIMEOUT: 10s
       HTTP_IDLE_TIMEOUT: 1m
+      HTTP_SHUTDOWN_TIMEOUT: 10s
 
       APP_ENVIRONMENT: local
       APP_NAME: go-crud-api

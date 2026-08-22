@@ -1,13 +1,14 @@
 package auth_test
 
 import (
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/user"
 	"errors"
 	"strconv"
 	"testing"
 	"time"
+
+	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/outbox"
+	"CrudTutorialProject/internal/user"
 
 	"golang.org/x/crypto/bcrypt"
 )

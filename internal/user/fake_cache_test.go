@@ -1,9 +1,10 @@
 package user_test
 
 import (
-	"CrudTutorialProject/internal/user"
 	"context"
 	"time"
+
+	"CrudTutorialProject/internal/user"
 )
 
 type fakeUserCache struct {

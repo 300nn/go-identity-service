@@ -1,9 +1,6 @@
 package auth_test
 
 import (
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/ratelimit"
-	"CrudTutorialProject/internal/validation"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -12,6 +9,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/ratelimit"
+	"CrudTutorialProject/internal/validation"
 
 	"golang.org/x/crypto/bcrypt"
 )

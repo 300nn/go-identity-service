@@ -1,12 +1,13 @@
 package user_test
 
 import (
-	"CrudTutorialProject/internal/apperror"
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/user"
 	"errors"
 	"testing"
 	"time"
+
+	"CrudTutorialProject/internal/apperror"
+	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/user"
 )
 
 type testApp struct {

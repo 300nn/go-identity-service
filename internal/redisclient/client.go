@@ -1,9 +1,10 @@
 package redisclient
 
 import (
-	"CrudTutorialProject/internal/config"
 	"context"
 	"fmt"
+
+	"CrudTutorialProject/internal/config"
 
 	"github.com/redis/go-redis/v9"
 )

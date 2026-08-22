@@ -1,8 +1,9 @@
 package auth_test
 
 import (
-	"CrudTutorialProject/internal/outbox"
 	"context"
+
+	"CrudTutorialProject/internal/outbox"
 
 	"CrudTutorialProject/internal/auth"
 	"CrudTutorialProject/internal/user"

@@ -1,9 +1,10 @@
 package kafkaconsumer
 
 import (
-	"CrudTutorialProject/internal/audit"
 	"context"
 	"fmt"
+
+	"CrudTutorialProject/internal/audit"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

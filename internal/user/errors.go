@@ -1,9 +1,10 @@
 package user
 
 import (
-	"CrudTutorialProject/internal/apperror"
 	"errors"
 	"net/http"
+
+	"CrudTutorialProject/internal/apperror"
 )
 
 var (

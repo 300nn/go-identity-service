@@ -1,12 +1,13 @@
 package auth_test
 
 import (
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/user"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/user"
 )
 
 func TestMiddleware_RequireAuth_MissingHeader(t *testing.T) {

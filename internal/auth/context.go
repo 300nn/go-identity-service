@@ -1,8 +1,9 @@
 package auth
 
 import (
-	"CrudTutorialProject/internal/user"
 	"context"
+
+	"CrudTutorialProject/internal/user"
 )
 
 type Principal struct {

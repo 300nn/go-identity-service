@@ -1,8 +1,9 @@
 package auth_test
 
 import (
-	"CrudTutorialProject/internal/auth"
 	"testing"
+
+	"CrudTutorialProject/internal/auth"
 
 	"golang.org/x/crypto/bcrypt"
 )

@@ -1,10 +1,11 @@
 package user_test
 
 import (
-	"CrudTutorialProject/internal/testutils"
-	"CrudTutorialProject/internal/user"
 	"testing"
 	"time"
+
+	"CrudTutorialProject/internal/testutils"
+	"CrudTutorialProject/internal/user"
 )
 
 func TestRedisCache_SetAndGetUser(t *testing.T) {

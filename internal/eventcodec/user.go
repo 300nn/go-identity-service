@@ -1,8 +1,9 @@
 package eventcodec
 
 import (
-	usereventv1 "CrudTutorialProject/internal/gen/events/user/v1"
 	"fmt"
+
+	usereventv1 "CrudTutorialProject/internal/gen/events/user/v1"
 
 	"google.golang.org/protobuf/proto"
 )

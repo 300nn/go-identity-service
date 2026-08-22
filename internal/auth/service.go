@@ -1,15 +1,16 @@
 package auth
 
 import (
-	"CrudTutorialProject/internal/eventcodec"
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/user"
 	"context"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"CrudTutorialProject/internal/eventcodec"
+	"CrudTutorialProject/internal/outbox"
+	"CrudTutorialProject/internal/user"
 )
 
 const dummyPasswordHash = "$2a$12$e80yq9gIe67Cqg4a0d9I6.L971nJ9.xP7pB/64QZz.7iG8JgP1G2m"

@@ -1,12 +1,13 @@
 package outbox_test
 
 import (
-	"CrudTutorialProject/internal/eventcodec"
-	"CrudTutorialProject/internal/outbox"
 	"io"
 	"log/slog"
 	"testing"
 	"time"
+
+	"CrudTutorialProject/internal/eventcodec"
+	"CrudTutorialProject/internal/outbox"
 )
 
 func newTestWorker(t *testing.T, store outbox.Store, publisher outbox.Publisher) *outbox.Worker {

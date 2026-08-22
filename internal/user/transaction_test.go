@@ -1,12 +1,13 @@
 package user_test
 
 import (
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/testutils"
-	"CrudTutorialProject/internal/user"
 	"context"
 	"errors"
 	"testing"
+
+	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/testutils"
+	"CrudTutorialProject/internal/user"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -1,6 +1,16 @@
 package app
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"CrudTutorialProject/internal/auth"
 	"CrudTutorialProject/internal/config"
 	userapiv1 "CrudTutorialProject/internal/gen/api/user/v1"
@@ -16,15 +26,6 @@ import (
 	"CrudTutorialProject/internal/response"
 	"CrudTutorialProject/internal/user"
 	"CrudTutorialProject/internal/validation"
-	"context"
-	"errors"
-	"fmt"
-	"log/slog"
-	"net"
-	"net/http"
-	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
@@ -39,6 +40,10 @@ type ShutdownFunc func()
 
 func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	var shuttingDown atomic.Bool
+
+	consumerShutdown := noopShutdown
+	outboxShutdown := noopShutdown
+	grpcShutdown := noopShutdown
 
 	mux := http.NewServeMux()
 
@@ -119,23 +124,26 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	initUserModule(mux, log, userService, validator, authMiddleware)
 
-	consumerShutdown, err := initKafkaConsumerModule(dbPool, log, cfg, metrics)
+	consumerShutdown, err = initKafkaConsumerModule(dbPool, log, cfg, metrics)
 	if err != nil {
 		return err
 	}
-	defer consumerShutdown()
 
-	outboxShutdown, err := initOutboxModule(dbPool, log, cfg, metrics)
+	outboxShutdown, err = initOutboxModule(dbPool, log, cfg, metrics)
 	if err != nil {
+		log.Info("stopping kafka consumer")
+		consumerShutdown()
 		return err
 	}
-	defer outboxShutdown()
 
-	grpcShutdown, err := initGRPCModule(cfg, log, userService, tokenManager, metrics)
+	grpcShutdown, err = initGRPCModule(cfg, log, userService, tokenManager, metrics)
 	if err != nil {
+		log.Info("stopping outbox worker")
+		outboxShutdown()
+		log.Info("stopping kafka consumer")
+		consumerShutdown()
 		return err
 	}
-	defer grpcShutdown()
 
 	handler := middleware.Chain(
 		mux,
@@ -165,6 +173,12 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	select {
 	case err := <-errCh:
+		log.Info("stopping grpc server")
+		grpcShutdown()
+		log.Info("stopping outbox worker")
+		outboxShutdown()
+		log.Info("stopping kafka consumer")
+		consumerShutdown()
 		return err
 	case <-ctx.Done():
 		log.Info("shutdown signal received")
@@ -172,14 +186,36 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	shuttingDown.Store(true)
 
-	shutDownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutDownCtx, cancel := context.WithTimeout(context.Background(), cfg.HTTP.ShutdownTimeout)
 	defer cancel()
 
 	if err := server.Shutdown(shutDownCtx); err != nil {
+		shuttingDown.Store(true)
+
+		log.Info("stopping grpc server")
+		grpcShutdown()
+
+		log.Info("stopping outbox worker")
+		outboxShutdown()
+
+		log.Info("stopping kafka consumer")
+		consumerShutdown()
+
 		return fmt.Errorf("shutdown server: %w", err)
 	}
 
 	log.Info("server stopped gracefully")
+
+	log.Info("stopping grpc server")
+	grpcShutdown()
+
+	log.Info("stopping outbox worker")
+	outboxShutdown()
+
+	log.Info("stopping kafka consumer")
+	consumerShutdown()
+
+	log.Info("application stopped gracefully")
 	return nil
 }
 
@@ -256,7 +292,6 @@ func initAuthModule(
 	redisClient *redis.Client,
 	tokenManager *auth.TokenManager,
 ) *auth.MiddleWare {
-
 	refreshStore := auth.NewRefreshTokenRepository(db)
 
 	refreshTokens := auth.NewRefreshTokenManager()
@@ -289,7 +324,6 @@ func initOutboxModule(
 	cfg *config.Config,
 	metrics *appmetrics.Metrics,
 ) (ShutdownFunc, error) {
-
 	outboxRepo := outbox.NewPostgresRepository(dbPool)
 
 	kafkaPublisher, err := outbox.NewKafkaPublisher(outbox.KafkaPublisherConfig{
@@ -444,6 +478,8 @@ func initGRPCModule(
 		if err := grpcServer.Serve(listener); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			log.Error("gRPC server stopped with error", slog.Any("error", err))
 		}
+
+		log.Info("gRPC server stopped")
 	}()
 
 	var shutdownOnce sync.Once
@@ -487,3 +523,5 @@ func newKafkaHealthClient(cfg *config.Config) (*kgo.Client, error) {
 
 	return client, nil
 }
+
+func noopShutdown() {}

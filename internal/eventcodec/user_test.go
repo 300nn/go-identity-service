@@ -1,8 +1,9 @@
 package eventcodec_test
 
 import (
-	"CrudTutorialProject/internal/eventcodec"
 	"testing"
+
+	"CrudTutorialProject/internal/eventcodec"
 )
 
 func TestMarshalAndUnmarshalUserRegistered(t *testing.T) {

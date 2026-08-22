@@ -1,11 +1,12 @@
 package grpcapi
 
 import (
+	"context"
+	"errors"
+
 	"CrudTutorialProject/internal/apperror"
 	userapiv1 "CrudTutorialProject/internal/gen/api/user/v1"
 	"CrudTutorialProject/internal/user"
-	"context"
-	"errors"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

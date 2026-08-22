@@ -1,8 +1,9 @@
 package kafkaconsumer_test
 
 import (
-	"CrudTutorialProject/internal/kafkaconsumer"
 	"testing"
+
+	"CrudTutorialProject/internal/kafkaconsumer"
 )
 
 func TestRouter_Handle_RoutesByEventType(t *testing.T) {

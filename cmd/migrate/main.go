@@ -1,11 +1,12 @@
 package main
 
 import (
-	"CrudTutorialProject/internal/config"
 	"database/sql"
 	"fmt"
 	"log/slog"
 	"os"
+
+	"CrudTutorialProject/internal/config"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"

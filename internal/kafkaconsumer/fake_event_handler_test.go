@@ -1,8 +1,9 @@
 package kafkaconsumer_test
 
 import (
-	"CrudTutorialProject/internal/kafkaconsumer"
 	"context"
+
+	"CrudTutorialProject/internal/kafkaconsumer"
 )
 
 type fakeEventHandler struct {

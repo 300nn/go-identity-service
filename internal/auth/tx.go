@@ -1,10 +1,11 @@
 package auth
 
 import (
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/user"
 	"context"
 	"fmt"
+
+	"CrudTutorialProject/internal/outbox"
+	"CrudTutorialProject/internal/user"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

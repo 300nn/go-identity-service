@@ -1,9 +1,6 @@
 package config
 
 import (
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/user"
 	"errors"
 	"fmt"
 	"net"
@@ -12,6 +9,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/outbox"
+	"CrudTutorialProject/internal/user"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/ilyakaznacheev/cleanenv"
@@ -41,6 +42,7 @@ type HTTPConfig struct {
 	WriteTimeout      time.Duration `yaml:"write_timeout" env:"WRITE_TIMEOUT" env-default:"10s" validate:"gt=0"`
 	IdleTimeout       time.Duration `yaml:"idle_timeout" env:"IDLE_TIMEOUT" env-default:"1m" validate:"gt=0"`
 	ReadHeaderTimeout time.Duration `yaml:"read_header_timeout" env:"READ_HEADER_TIMEOUT" env-default:"5s" validate:"gt=0"`
+	ShutdownTimeout   time.Duration `yaml:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT" env-default:"10s" validate:"gt=0"`
 }
 
 type DatabaseConfig struct {

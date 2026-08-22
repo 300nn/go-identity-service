@@ -1,10 +1,11 @@
 package outbox_test
 
 import (
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/testutils"
 	"testing"
 	"time"
+
+	"CrudTutorialProject/internal/outbox"
+	"CrudTutorialProject/internal/testutils"
 )
 
 func TestPostgresRepository_Create(t *testing.T) {

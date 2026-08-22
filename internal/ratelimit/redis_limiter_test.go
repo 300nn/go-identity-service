@@ -1,10 +1,11 @@
 package ratelimit_test
 
 import (
-	"CrudTutorialProject/internal/ratelimit"
-	"CrudTutorialProject/internal/testutils"
 	"testing"
 	"time"
+
+	"CrudTutorialProject/internal/ratelimit"
+	"CrudTutorialProject/internal/testutils"
 )
 
 func TestRedisLimiter_Allow(t *testing.T) {

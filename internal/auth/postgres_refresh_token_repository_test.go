@@ -1,10 +1,11 @@
 package auth_test
 
 import (
-	"CrudTutorialProject/internal/testutils"
 	"errors"
 	"testing"
 	"time"
+
+	"CrudTutorialProject/internal/testutils"
 
 	"CrudTutorialProject/internal/auth"
 	"CrudTutorialProject/internal/user"

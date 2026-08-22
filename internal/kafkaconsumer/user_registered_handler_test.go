@@ -1,13 +1,14 @@
 package kafkaconsumer_test
 
 import (
+	"io"
+	"log/slog"
+	"testing"
+
 	"CrudTutorialProject/internal/audit"
 	"CrudTutorialProject/internal/eventcodec"
 	"CrudTutorialProject/internal/kafkaconsumer"
 	"CrudTutorialProject/internal/testutils"
-	"io"
-	"log/slog"
-	"testing"
 )
 
 func TestUserRegisteredHandler_Handle_CreateAuditEvent(t *testing.T) {

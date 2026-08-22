@@ -1,12 +1,13 @@
 package auth
 
 import (
-	"CrudTutorialProject/internal/response"
-	"CrudTutorialProject/internal/validation"
 	"log/slog"
 	"net"
 	"net/http"
 	"strings"
+
+	"CrudTutorialProject/internal/response"
+	"CrudTutorialProject/internal/validation"
 )
 
 type Handler struct {

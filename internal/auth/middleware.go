@@ -1,12 +1,13 @@
 package auth
 
 import (
-	"CrudTutorialProject/internal/response"
-	"CrudTutorialProject/internal/user"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"CrudTutorialProject/internal/response"
+	"CrudTutorialProject/internal/user"
 )
 
 type MiddleWare struct {

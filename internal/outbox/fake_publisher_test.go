@@ -1,9 +1,10 @@
 package outbox_test
 
 import (
-	"CrudTutorialProject/internal/outbox"
 	"context"
 	"errors"
+
+	"CrudTutorialProject/internal/outbox"
 )
 
 var errPublishFailed = errors.New("publish failed")

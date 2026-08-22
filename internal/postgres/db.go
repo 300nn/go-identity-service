@@ -1,10 +1,11 @@
 package postgres
 
 import (
-	"CrudTutorialProject/internal/config"
 	"context"
 	"fmt"
 	"time"
+
+	"CrudTutorialProject/internal/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

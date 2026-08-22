@@ -1,8 +1,9 @@
 package httpserver
 
 import (
-	"CrudTutorialProject/internal/config"
 	"net/http"
+
+	"CrudTutorialProject/internal/config"
 )
 
 func New(cfg config.HTTPConfig, handler http.Handler) *http.Server {

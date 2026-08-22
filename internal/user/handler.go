@@ -1,13 +1,14 @@
 package user
 
 import (
-	"CrudTutorialProject/internal/apperror"
-	"CrudTutorialProject/internal/response"
-	"CrudTutorialProject/internal/validation"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"CrudTutorialProject/internal/apperror"
+	"CrudTutorialProject/internal/response"
+	"CrudTutorialProject/internal/validation"
 )
 
 type Handler struct {

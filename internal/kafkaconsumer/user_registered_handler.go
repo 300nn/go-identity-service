@@ -1,12 +1,13 @@
 package kafkaconsumer
 
 import (
-	"CrudTutorialProject/internal/audit"
-	"CrudTutorialProject/internal/eventcodec"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+
+	"CrudTutorialProject/internal/audit"
+	"CrudTutorialProject/internal/eventcodec"
 )
 
 type UserRegisteredPayload struct {

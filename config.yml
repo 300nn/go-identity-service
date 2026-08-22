@@ -10,6 +10,7 @@ http:
   write_timeout: 10s
   idle_timeout: 60s
   read_header_timeout: 5s
+  shutdown_timeout: 10s
 
 grpc:
   host: "0.0.0.0"

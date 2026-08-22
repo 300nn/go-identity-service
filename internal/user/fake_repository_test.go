@@ -1,11 +1,12 @@
 package user_test
 
 import (
-	"CrudTutorialProject/internal/user"
 	"context"
 	"sort"
 	"strings"
 	"time"
+
+	"CrudTutorialProject/internal/user"
 )
 
 type FakeRepository struct {

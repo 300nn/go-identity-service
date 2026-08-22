@@ -1,10 +1,11 @@
 package auth_test
 
 import (
-	"CrudTutorialProject/internal/auth"
 	"context"
 	"errors"
 	"time"
+
+	"CrudTutorialProject/internal/auth"
 )
 
 type fakeRefreshTokenRepository struct {

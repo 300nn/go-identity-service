@@ -1,9 +1,10 @@
 package auth_test
 
 import (
-	"CrudTutorialProject/internal/outbox"
 	"context"
 	"errors"
+
+	"CrudTutorialProject/internal/outbox"
 )
 
 var errCreateOutboxEventFailed = errors.New("create outbox event failed")

@@ -1,15 +1,16 @@
 package main
 
 import (
-	"CrudTutorialProject/internal/app"
-	"CrudTutorialProject/internal/config"
-	"CrudTutorialProject/internal/logger"
 	"context"
 	"errors"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"CrudTutorialProject/internal/app"
+	"CrudTutorialProject/internal/config"
+	"CrudTutorialProject/internal/logger"
 )
 
 func main() {

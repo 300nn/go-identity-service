@@ -1,8 +1,9 @@
 package auth_test
 
 import (
-	"CrudTutorialProject/internal/auth"
 	"testing"
+
+	"CrudTutorialProject/internal/auth"
 )
 
 func TestRefreshTokenManager_Generate(t *testing.T) {

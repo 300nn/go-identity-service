@@ -1,9 +1,10 @@
 package kafkaconsumer_test
 
 import (
+	"testing"
+
 	"CrudTutorialProject/internal/kafkaconsumer"
 	"CrudTutorialProject/internal/testutils"
-	"testing"
 )
 
 func TestPostgresIdempotencyStore_MarkAndCheckProcessed(t *testing.T) {

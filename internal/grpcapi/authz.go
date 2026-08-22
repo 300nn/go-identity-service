@@ -1,9 +1,10 @@
 package grpcapi
 
 import (
+	"context"
+
 	"CrudTutorialProject/internal/auth"
 	"CrudTutorialProject/internal/user"
-	"context"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

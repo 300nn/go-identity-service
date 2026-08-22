@@ -1,10 +1,11 @@
 package middleware
 
 import (
-	"CrudTutorialProject/internal/response"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+
+	"CrudTutorialProject/internal/response"
 )
 
 func Recovery(logger *slog.Logger) func(http.Handler) http.Handler {

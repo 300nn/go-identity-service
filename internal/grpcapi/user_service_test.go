@@ -1,11 +1,12 @@
 package grpcapi_test
 
 import (
-	userapiv1 "CrudTutorialProject/internal/gen/api/user/v1"
-	"CrudTutorialProject/internal/grpcapi"
 	"context"
 	"testing"
 	"time"
+
+	userapiv1 "CrudTutorialProject/internal/gen/api/user/v1"
+	"CrudTutorialProject/internal/grpcapi"
 
 	"CrudTutorialProject/internal/auth"
 	"CrudTutorialProject/internal/user"
