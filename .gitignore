@@ -1,6 +1,5 @@
 .idea/
 *.iml
-.env
 *.exe
 /bin/
 
@@ -10,6 +9,8 @@
 *.so
 *.dylib
 
+.env
+.env.prod
 
 go.work
 go.work.sum

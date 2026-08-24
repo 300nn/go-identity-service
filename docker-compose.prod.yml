@@ -1,0 +1,116 @@
+services:
+  api:
+    image: ghcr.io/300nn/go-identity-service:${IMAGE_TAG:-latest}
+    container_name: identity-service-api
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    healthcheck:
+      test: [ "CMD", "/app/healthcheck", "-url", "http://localhost:8080/ready" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  migrate:
+    image: ghcr.io/300nn/go-identity-service:${IMAGE_TAG:-latest}
+    container_name: identity-service-migrate
+    restart: "no"
+    env_file:
+      - .env.prod
+    entrypoint: ["/app/migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17
+    container_name: identity-service-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: identity_service
+      POSTGRES_USER: identity_service
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - identity_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U identity_service -d identity_service" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    container_name: identity-service-redis
+    restart: unless-stopped
+    command: [ "redis-server", "--appendonly", "yes" ]
+    volumes:
+      - identity_redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:4.1.0
+    container_name: identity-service-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    volumes:
+      - identity_kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  kafka-init:
+    image: apache/kafka:4.1.0
+    container_name: identity-service-kafka-init
+    restart: "no"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command:
+      - /bin/sh
+      - -c
+      - |
+        /opt/kafka/bin/kafka-topics.sh \
+          --bootstrap-server kafka:9092 \
+          --create \
+          --if-not-exists \
+          --topic outbox.events \
+          --partitions 1 \
+          --replication-factor 1
+
+volumes:
+  identity_postgres_data:
+  identity_redis_data:
+  identity_kafka_data:
