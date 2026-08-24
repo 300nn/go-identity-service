@@ -61,6 +61,13 @@ redis:
   password: ""
   db: 0
 
+telemetry:
+  enabled: false
+  exporter: "stdout"
+  endpoint: "localhost:4317"
+  insecure: true
+  sample_ratio: 1.0
+
 timeouts:
   database_query: 2s
   redis_command: 500ms

@@ -11,6 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/300nn/go-identity-service/internal/auth"
 	"github.com/300nn/go-identity-service/internal/config"
 	userapiv1 "github.com/300nn/go-identity-service/internal/gen/api/user/v1"
@@ -24,6 +27,7 @@ import (
 	"github.com/300nn/go-identity-service/internal/ratelimit"
 	"github.com/300nn/go-identity-service/internal/redisclient"
 	"github.com/300nn/go-identity-service/internal/response"
+	"github.com/300nn/go-identity-service/internal/telemetry"
 	"github.com/300nn/go-identity-service/internal/user"
 	"github.com/300nn/go-identity-service/internal/validation"
 
@@ -39,6 +43,19 @@ import (
 type ShutdownFunc func()
 
 func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
+	telemetryShutdown, err := telemetry.Init(ctx, cfg.App, cfg.Telemetry, log)
+	if err != nil {
+		return fmt.Errorf("init telemetry: %w", err)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := telemetryShutdown(shutdownCtx); err != nil {
+			log.Error("shutdown telemetry", slog.Any("error", err))
+		}
+	}()
+
 	var shuttingDown atomic.Bool
 
 	consumerShutdown := noopShutdown
@@ -158,6 +175,13 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		middleware.Logging(log),
 		middleware.Recovery(log),
 	)
+
+	if cfg.Telemetry.Enabled {
+		handler = otelhttp.NewHandler(
+			handler,
+			"http.server",
+		)
+	}
 
 	server := httpserver.New(
 		cfg.HTTP,
@@ -465,12 +489,21 @@ func initGRPCModule(
 	authInterceptor := grpcapi.NewAuthInterceptor(tokenManager)
 	metricsInterceptor := grpcapi.NewMetricsInterceptor(metrics)
 
-	grpcServer := grpc.NewServer(
+	grpcOptions := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(
 			metricsInterceptor.Unary(),
 			authInterceptor.Unary(),
 		),
-	)
+	}
+
+	if cfg.Telemetry.Enabled {
+		grpcOptions = append(
+			grpcOptions,
+			grpc.StatsHandler(otelgrpc.NewServerHandler()),
+		)
+	}
+
+	grpcServer := grpc.NewServer(grpcOptions...)
 
 	userapiv1.RegisterUserServiceServer(
 		grpcServer,

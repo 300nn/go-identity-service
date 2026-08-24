@@ -295,6 +295,29 @@ GET /ready
 
 `/ready` checks dependencies such as PostgreSQL, Redis, Kafka, and shutdown state.
 
+## Tracing
+
+The service supports OpenTelemetry tracing.
+
+In local development, tracing can be enabled with the stdout exporter:
+
+```env
+TELEMETRY_ENABLED=true
+TELEMETRY_EXPORTER=stdout
+TELEMETRY_SAMPLE_RATIO=1.0
+```
+
+For production-like environments, the service can export traces through OTLP/gRPC:
+
+```env
+TELEMETRY_ENABLED=true
+TELEMETRY_EXPORTER=otlp
+TELEMETRY_ENDPOINT=otel-collector:4317
+TELEMETRY_INSECURE=true
+```
+
+Traces include HTTP server requests and gRPC server calls.
+
 ## Security Notes
 
 Implemented:

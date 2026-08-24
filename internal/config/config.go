@@ -35,6 +35,7 @@ type Config struct {
 	Kafka     KafkaConfig          `yaml:"kafka" env-prefix:"KAFKA_"`
 	Timeouts  TimeoutsConfig       `yaml:"timeouts" env-prefix:"TIMEOUTS_"`
 	CORS      CORSConfig           `yaml:"cors" env-prefix:"CORS_"`
+	Telemetry TelemetryConfig      `yaml:"telemetry" env-prefix:"TELEMETRY_"`
 }
 
 type HTTPConfig struct {
@@ -84,6 +85,14 @@ type PoolConfig struct {
 
 type LogConfig struct {
 	Level string `yaml:"level" env:"LEVEL" env-default:"info" validate:"oneof=debug info warn error"`
+}
+
+type TelemetryConfig struct {
+	Enabled     bool    `yaml:"enabled" env:"ENABLED" env-default:"false"`
+	Exporter    string  `yaml:"exporter" env:"EXPORTER" env-default:"stdout" validate:"oneof=stdout otlp"`
+	Endpoint    string  `yaml:"endpoint" env:"ENDPOINT" env-default:"localhost:4317"`
+	Insecure    bool    `yaml:"insecure" env:"INSECURE" env-default:"true"`
+	SampleRatio float64 `yaml:"sample_ratio" env:"SAMPLE_RATIO" env-default:"1.0" validate:"gte=0,lte=1"`
 }
 
 type AppConfig struct {

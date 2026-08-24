@@ -146,6 +146,12 @@ services:
       WORKER_LOCK_TIMEOUT: 1m
       WORKER_PROCESS_TIMEOUT: 30s
 
+      TELEMETRY_ENABLED: false
+      TELEMETRY_EXPORTER: stdout
+      TELEMETRY_ENDPOINT: localhost:4317
+      TELEMETRY_INSECURE: true
+      TELEMETRY_SAMPLE_RATIO: 1.0
+
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0
