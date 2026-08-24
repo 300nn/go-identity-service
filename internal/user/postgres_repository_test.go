@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"CrudTutorialProject/internal/testutils"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/testutils"
+	"github.com/300nn/go-identity-service/internal/user"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )

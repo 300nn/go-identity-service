@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/user"
 )
 
 type fakeUserRepository struct {

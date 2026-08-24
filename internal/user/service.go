@@ -1,18 +1,18 @@
 package user
 
 import (
-	"CrudTutorialProject/internal/eventcodec"
-	"CrudTutorialProject/internal/outbox"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/300nn/go-identity-service/internal/eventcodec"
+	"github.com/300nn/go-identity-service/internal/outbox"
 	"log/slog"
 	"net/mail"
 	"strconv"
 	"strings"
 	"time"
 
-	"CrudTutorialProject/internal/apperror"
+	"github.com/300nn/go-identity-service/internal/apperror"
 )
 
 type Service struct {

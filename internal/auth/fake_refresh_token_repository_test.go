@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"CrudTutorialProject/internal/auth"
+	"github.com/300nn/go-identity-service/internal/auth"
 )
 
 type fakeRefreshTokenRepository struct {

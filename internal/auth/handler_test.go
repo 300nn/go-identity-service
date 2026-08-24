@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/ratelimit"
-	"CrudTutorialProject/internal/validation"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/ratelimit"
+	"github.com/300nn/go-identity-service/internal/validation"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -32,7 +32,7 @@ func newTestAuthHTTPApp(t *testing.T) *testAuthHTTPApp {
 
 	repo := newFakeUserRepository()
 	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
-	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	refreshTokens := auth.NewRefreshTokenManager()
 	refreshTokenRepo := newFakeRefreshTokenRepository()
 	outboxStore := newFakeOutboxStore()

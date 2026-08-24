@@ -3,7 +3,7 @@ package auth_test
 import (
 	"testing"
 
-	"CrudTutorialProject/internal/auth"
+	"github.com/300nn/go-identity-service/internal/auth"
 
 	"golang.org/x/crypto/bcrypt"
 )

@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/user"
 )
 
 func TestMiddleware_RequireAuth_MissingHeader(t *testing.T) {
 	middleware := auth.NewMiddleWare(
-		auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api"),
+		auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service"),
 	)
 
 	nextCalled := false
@@ -36,7 +36,7 @@ func TestMiddleware_RequireAuth_MissingHeader(t *testing.T) {
 }
 
 func TestMiddleware_RequireAuth_ValidToken(t *testing.T) {
-	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	middleware := auth.NewMiddleWare(tokenManager)
 
 	token, err := tokenManager.Generate(123, "alex@example.com", "ADMIN")
@@ -86,7 +86,7 @@ func TestMiddleware_RequireAuth_ValidToken(t *testing.T) {
 }
 
 func TestMiddleware_RequireAuth_InvalidToken(t *testing.T) {
-	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	middleware := auth.NewMiddleWare(tokenManager)
 
 	nextCalled := false
@@ -112,7 +112,7 @@ func TestMiddleware_RequireAuth_InvalidToken(t *testing.T) {
 }
 
 func TestMiddleware_RequireRole_AllowsAdmin(t *testing.T) {
-	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	middleware := auth.NewMiddleWare(tokenManager)
 
 	token, err := tokenManager.Generate(123, "admin@example.com", string(user.RoleAdmin))
@@ -144,7 +144,7 @@ func TestMiddleware_RequireRole_AllowsAdmin(t *testing.T) {
 }
 
 func TestMiddleware_RequireRole_ForbidsUser(t *testing.T) {
-	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	middleware := auth.NewMiddleWare(tokenManager)
 
 	token, err := tokenManager.Generate(123, "user@example.com", string(user.RoleUser))
@@ -175,7 +175,7 @@ func TestMiddleware_RequireRole_ForbidsUser(t *testing.T) {
 }
 
 func TestMiddleware_RequireSelfOrRole_AllowsAdmin(t *testing.T) {
-	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	middleware := auth.NewMiddleWare(tokenManager)
 
 	token, err := tokenManager.Generate(1, "admin@example.com", string(user.RoleAdmin))
@@ -211,7 +211,7 @@ func TestMiddleware_RequireSelfOrRole_AllowsAdmin(t *testing.T) {
 }
 
 func TestMiddleware_RequireSelfOrRole_AllowsSelf(t *testing.T) {
-	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	middleware := auth.NewMiddleWare(tokenManager)
 
 	token, err := tokenManager.Generate(123, "user@example.com", string(user.RoleUser))
@@ -247,7 +247,7 @@ func TestMiddleware_RequireSelfOrRole_AllowsSelf(t *testing.T) {
 }
 
 func TestMiddleware_RequireSelfOrRole_ForbidsOtherUser(t *testing.T) {
-	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	middleware := auth.NewMiddleWare(tokenManager)
 
 	token, err := tokenManager.Generate(123, "user@example.com", string(user.RoleUser))
@@ -282,7 +282,7 @@ func TestMiddleware_RequireSelfOrRole_ForbidsOtherUser(t *testing.T) {
 }
 
 func TestMiddleware_RequireSelfOrRole_MissingToken(t *testing.T) {
-	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	middleware := auth.NewMiddleWare(tokenManager)
 
 	nextCalled := false
@@ -311,7 +311,7 @@ func TestMiddleware_RequireSelfOrRole_MissingToken(t *testing.T) {
 }
 
 func TestMiddleware_RequireSelfOrRole_InvalidPathID(t *testing.T) {
-	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokenManager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	middleware := auth.NewMiddleWare(tokenManager)
 
 	token, err := tokenManager.Generate(123, "user@example.com", string(user.RoleUser))

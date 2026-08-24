@@ -3,7 +3,7 @@ package eventcodec_test
 import (
 	"testing"
 
-	"CrudTutorialProject/internal/eventcodec"
+	"github.com/300nn/go-identity-service/internal/eventcodec"
 )
 
 func TestMarshalAndUnmarshalUserRegistered(t *testing.T) {

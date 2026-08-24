@@ -1,4 +1,4 @@
-module CrudTutorialProject
+module github.com/300nn/go-identity-service
 
 go 1.26.7
 

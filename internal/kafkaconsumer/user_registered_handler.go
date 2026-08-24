@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"CrudTutorialProject/internal/audit"
-	"CrudTutorialProject/internal/eventcodec"
+	"github.com/300nn/go-identity-service/internal/audit"
+	"github.com/300nn/go-identity-service/internal/eventcodec"
 )
 
 type UserRegisteredPayload struct {

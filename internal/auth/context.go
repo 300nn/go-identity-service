@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/user"
 )
 
 type Principal struct {

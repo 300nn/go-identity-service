@@ -3,7 +3,7 @@ package httpserver
 import (
 	"net/http"
 
-	"CrudTutorialProject/internal/config"
+	"github.com/300nn/go-identity-service/internal/config"
 )
 
 func New(cfg config.HTTPConfig, handler http.Handler) *http.Server {

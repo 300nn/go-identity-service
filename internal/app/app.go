@@ -11,21 +11,21 @@ import (
 	"sync/atomic"
 	"time"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/config"
-	userapiv1 "CrudTutorialProject/internal/gen/api/user/v1"
-	"CrudTutorialProject/internal/grpcapi"
-	"CrudTutorialProject/internal/httpserver"
-	"CrudTutorialProject/internal/kafkaconsumer"
-	appmetrics "CrudTutorialProject/internal/metrics"
-	"CrudTutorialProject/internal/middleware"
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/postgres"
-	"CrudTutorialProject/internal/ratelimit"
-	"CrudTutorialProject/internal/redisclient"
-	"CrudTutorialProject/internal/response"
-	"CrudTutorialProject/internal/user"
-	"CrudTutorialProject/internal/validation"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/config"
+	userapiv1 "github.com/300nn/go-identity-service/internal/gen/api/user/v1"
+	"github.com/300nn/go-identity-service/internal/grpcapi"
+	"github.com/300nn/go-identity-service/internal/httpserver"
+	"github.com/300nn/go-identity-service/internal/kafkaconsumer"
+	appmetrics "github.com/300nn/go-identity-service/internal/metrics"
+	"github.com/300nn/go-identity-service/internal/middleware"
+	"github.com/300nn/go-identity-service/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/postgres"
+	"github.com/300nn/go-identity-service/internal/ratelimit"
+	"github.com/300nn/go-identity-service/internal/redisclient"
+	"github.com/300nn/go-identity-service/internal/response"
+	"github.com/300nn/go-identity-service/internal/user"
+	"github.com/300nn/go-identity-service/internal/validation"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
@@ -109,7 +109,7 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, hasher, dbPool, redisClient, tokenManager)
 
 	userTxFactory := user.NewPostgresTxRepositoryFactory(dbPool)
-	userCache := user.NewRedisCache(redisClient, "go-crud", cfg.Timeouts.RedisCommand)
+	userCache := user.NewRedisCache(redisClient, "identity", cfg.Timeouts.RedisCommand)
 	observedUserCache := user.NewObservedCache(
 		userCache,
 		appmetrics.NewCacheObserver(metrics),
@@ -319,7 +319,7 @@ func initAuthModule(
 		cfg.Auth.RefreshTokenTTL,
 	)
 
-	limiter := ratelimit.NewRedisLimiter(redisClient, "go-crud", cfg.Timeouts.RedisCommand)
+	limiter := ratelimit.NewRedisLimiter(redisClient, "identity", cfg.Timeouts.RedisCommand)
 
 	authHandler := auth.NewHandler(authService, log, validator, limiter, cfg.RateLimit)
 	authMiddleware := auth.NewMiddleWare(tokenManager)
@@ -528,7 +528,7 @@ func newKafkaHealthClient(cfg *config.Config) (*kgo.Client, error) {
 
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
-		kgo.ClientID("go-crud-api-health"),
+		kgo.ClientID("identity-service-health"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create kafka health client: %w", err)

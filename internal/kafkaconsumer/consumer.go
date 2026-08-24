@@ -1,9 +1,9 @@
 package kafkaconsumer
 
 import (
-	"CrudTutorialProject/internal/timex"
 	"context"
 	"fmt"
+	"github.com/300nn/go-identity-service/internal/timex"
 	"log/slog"
 	"time"
 
@@ -55,7 +55,7 @@ func NewConsumer(cfg Config, handler EventHandler, txFactory TxFactory, logger *
 
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(cfg.Brokers...),
-		kgo.ClientID("go-crud-api-consumer"),
+		kgo.ClientID("identity-service-consumer"),
 		kgo.ConsumerGroup(cfg.ConsumerGroup),
 		kgo.ConsumeTopics(cfg.Topic),
 		kgo.DisableAutoCommit(),

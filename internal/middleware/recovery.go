@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"CrudTutorialProject/internal/response"
+	"github.com/300nn/go-identity-service/internal/response"
 )
 
 func Recovery(logger *slog.Logger) func(http.Handler) http.Handler {

@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/response"
-	"CrudTutorialProject/internal/user"
-	"CrudTutorialProject/internal/validation"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/response"
+	"github.com/300nn/go-identity-service/internal/user"
+	"github.com/300nn/go-identity-service/internal/validation"
 
 	"golang.org/x/crypto/bcrypt"
 )

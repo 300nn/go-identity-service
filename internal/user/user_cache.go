@@ -1,11 +1,11 @@
 package user
 
 import (
-	"CrudTutorialProject/internal/timex"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/300nn/go-identity-service/internal/timex"
 	"strconv"
 	"time"
 

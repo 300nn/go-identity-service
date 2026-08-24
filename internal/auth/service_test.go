@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/user"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -30,7 +30,7 @@ func newTestAuthApp(t *testing.T) testAuthApp {
 	refreshRepo := newFakeRefreshTokenRepository()
 
 	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
-	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	refresh := auth.NewRefreshTokenManager()
 
 	outboxStore := newFakeOutboxStore()
@@ -444,7 +444,7 @@ func TestService_Refresh_CreateNewTokenFails_DoesNotRevokeOldToken(t *testing.T)
 	userRepo := newFakeUserRepository()
 	baseRefreshRepo := newFakeRefreshTokenRepository()
 	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
-	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	refresh := auth.NewRefreshTokenManager()
 
 	outboxStore := newFakeOutboxStore()
@@ -522,7 +522,7 @@ func TestService_Register_CreateRefreshTokenFails_RollsBackUser(t *testing.T) {
 	)
 
 	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
-	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	refreshTokens := auth.NewRefreshTokenManager()
 
 	service := auth.NewService(
@@ -615,7 +615,7 @@ func TestService_Register_CreateOutboxEventFails_RollsBackUserAndRefreshToken(t 
 	)
 
 	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
-	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	tokens := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 	refreshTokens := auth.NewRefreshTokenManager()
 
 	service := auth.NewService(

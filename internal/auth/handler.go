@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"CrudTutorialProject/internal/response"
-	"CrudTutorialProject/internal/validation"
+	"github.com/300nn/go-identity-service/internal/response"
+	"github.com/300nn/go-identity-service/internal/validation"
 )
 
 type Handler struct {

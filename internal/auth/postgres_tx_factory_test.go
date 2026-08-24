@@ -4,9 +4,9 @@ import (
 	"errors"
 	"testing"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/testutils"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/testutils"
+	"github.com/300nn/go-identity-service/internal/user"
 )
 
 func TestPostgresTxFactory_WithinTx_RollsBack(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"CrudTutorialProject/internal/config"
+	"github.com/300nn/go-identity-service/internal/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

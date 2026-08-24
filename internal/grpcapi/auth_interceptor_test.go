@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/grpcapi"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/grpcapi"
+	"github.com/300nn/go-identity-service/internal/user"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"

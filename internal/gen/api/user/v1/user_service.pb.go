@@ -7,13 +7,12 @@
 package userapiv1
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -352,7 +351,7 @@ const file_api_user_v1_user_service_proto_rawDesc = "" +
 	"\x05total\x18\x02 \x01(\x03R\x05total2\x9f\x01\n" +
 	"\vUserService\x12D\n" +
 	"\aGetUser\x12\x1b.api.user.v1.GetUserRequest\x1a\x1c.api.user.v1.GetUserResponse\x12J\n" +
-	"\tListUsers\x12\x1d.api.user.v1.ListUsersRequest\x1a\x1e.api.user.v1.ListUsersResponseB8Z6CrudTutorialProject/internal/gen/api/user/v1;userapiv1b\x06proto3"
+	"\tListUsers\x12\x1d.api.user.v1.ListUsersRequest\x1a\x1e.api.user.v1.ListUsersResponseBIZGgithub.com/300nn/go-identity-service/internal/gen/api/user/v1;userapiv1b\x06proto3"
 
 var (
 	file_api_user_v1_user_service_proto_rawDescOnce sync.Once

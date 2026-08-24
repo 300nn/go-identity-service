@@ -3,7 +3,7 @@ package kafkaconsumer_test
 import (
 	"testing"
 
-	"CrudTutorialProject/internal/kafkaconsumer"
+	"github.com/300nn/go-identity-service/internal/kafkaconsumer"
 )
 
 func TestRouter_Handle_RoutesByEventType(t *testing.T) {

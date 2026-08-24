@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"CrudTutorialProject/internal/ratelimit"
+	"github.com/300nn/go-identity-service/internal/ratelimit"
 )
 
 func TestLimiter_Allow(t *testing.T) {

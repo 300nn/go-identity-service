@@ -4,15 +4,15 @@ import (
 	"testing"
 	"time"
 
-	"CrudTutorialProject/internal/ratelimit"
-	"CrudTutorialProject/internal/testutils"
+	"github.com/300nn/go-identity-service/internal/ratelimit"
+	"github.com/300nn/go-identity-service/internal/testutils"
 )
 
 func TestRedisLimiter_Allow(t *testing.T) {
 	ctx := t.Context()
 
 	redisClient := testutils.NewTestRedisClient(t)
-	limiter := ratelimit.NewRedisLimiter(redisClient, "go-crud", time.Second)
+	limiter := ratelimit.NewRedisLimiter(redisClient, "identity", time.Second)
 
 	key := "auth:login:email_ip:alex@example.com:127.0.0.1"
 

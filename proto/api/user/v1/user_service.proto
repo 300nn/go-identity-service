@@ -4,7 +4,7 @@ package api.user.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "CrudTutorialProject/internal/gen/api/user/v1;userapiv1";
+option go_package = "github.com/300nn/go-identity-service/internal/gen/api/user/v1;userapiv1";
 
 service UserService {
   rpc GetUser(GetUserRequest) returns (GetUserResponse);

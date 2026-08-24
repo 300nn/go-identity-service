@@ -7,12 +7,11 @@
 package usereventv1
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -90,7 +89,7 @@ const file_events_user_v1_user_events_proto_rawDesc = "" +
 	"\x0eUserRegistered\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
-	"\x04role\x18\x03 \x01(\tR\x04roleB=Z;CrudTutorialProject/internal/gen/events/user/v1;usereventv1b\x06proto3"
+	"\x04role\x18\x03 \x01(\tR\x04roleBNZLgithub.com/300nn/go-identity-service/internal/gen/events/user/v1;usereventv1b\x06proto3"
 
 var (
 	file_events_user_v1_user_events_proto_rawDescOnce sync.Once

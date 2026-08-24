@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/testutils"
+	"github.com/300nn/go-identity-service/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/testutils"
 )
 
 func TestPostgresRepository_Create(t *testing.T) {

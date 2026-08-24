@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"CrudTutorialProject/internal/apperror"
+	"github.com/300nn/go-identity-service/internal/apperror"
 )
 
 var (

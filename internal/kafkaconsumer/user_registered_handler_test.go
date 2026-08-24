@@ -5,10 +5,10 @@ import (
 	"log/slog"
 	"testing"
 
-	"CrudTutorialProject/internal/audit"
-	"CrudTutorialProject/internal/eventcodec"
-	"CrudTutorialProject/internal/kafkaconsumer"
-	"CrudTutorialProject/internal/testutils"
+	"github.com/300nn/go-identity-service/internal/audit"
+	"github.com/300nn/go-identity-service/internal/eventcodec"
+	"github.com/300nn/go-identity-service/internal/kafkaconsumer"
+	"github.com/300nn/go-identity-service/internal/testutils"
 )
 
 func TestUserRegisteredHandler_Handle_CreateAuditEvent(t *testing.T) {

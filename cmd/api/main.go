@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"CrudTutorialProject/internal/app"
-	"CrudTutorialProject/internal/config"
-	"CrudTutorialProject/internal/logger"
+	"github.com/300nn/go-identity-service/internal/app"
+	"github.com/300nn/go-identity-service/internal/config"
+	"github.com/300nn/go-identity-service/internal/logger"
 )
 
 func main() {

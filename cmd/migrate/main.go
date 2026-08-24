@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"os"
 
-	"CrudTutorialProject/internal/config"
+	"github.com/300nn/go-identity-service/internal/config"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"

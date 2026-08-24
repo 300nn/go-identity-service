@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/user"
 )
 
 var errFakeUserReaderFailed = errors.New("fake user reader failed")

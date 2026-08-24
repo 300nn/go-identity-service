@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/user"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/ilyakaznacheev/cleanenv"
@@ -57,8 +57,8 @@ type TimeoutsConfig struct {
 type DatabaseConfig struct {
 	Host     string     `yaml:"host" env:"HOST" env-default:"localhost" validate:"required"`
 	Port     int        `yaml:"port" env:"PORT" env-default:"5432" validate:"gte=1,lte=65535"`
-	Name     string     `yaml:"name" env:"NAME" env-default:"go_crud" validate:"required"`
-	User     string     `yaml:"user" env:"USER" env-default:"go_crud" validate:"required"`
+	Name     string     `yaml:"name" env:"NAME" env-default:"identity_service" validate:"required"`
+	User     string     `yaml:"user" env:"USER" env-default:"identity_service" validate:"required"`
 	Password string     `yaml:"password" env:"PASSWORD"`
 	Pool     PoolConfig `yaml:"pool" env-prefix:"POOL_"`
 	SSL      string     `yaml:"ssl" env:"SSL" env-default:"disable"`
@@ -87,7 +87,7 @@ type LogConfig struct {
 }
 
 type AppConfig struct {
-	Name        string `yaml:"name" env:"NAME" env-default:"go-crud-api" validate:"required"`
+	Name        string `yaml:"name" env:"NAME" env-default:"identity-service" validate:"required"`
 	Version     string `yaml:"version" env:"VERSION" env-default:"dev" validate:"required"`
 	Environment string `yaml:"environment" env:"ENVIRONMENT" env-default:"local" validate:"oneof=local development staging production"`
 }
@@ -142,7 +142,7 @@ type KafkaConfig struct {
 	OutboxTopic           string        `yaml:"outbox_topic" env:"OUTBOX_TOPIC" env-default:"outbox.events" validate:"required"`
 	ProducerBatchMaxBytes int32         `yaml:"producer_batch_max_bytes" env:"PRODUCER_BATCH_MAX_BYTES" env-default:"1048576" validate:"gt=0"`
 	ProducerLinger        time.Duration `yaml:"producer_linger" env:"PRODUCER_LINGER" env-default:"10ms" validate:"gte=0"`
-	ConsumerGroup         string        `yaml:"consumer_group" env:"CONSUMER_GROUP" env-default:"go-crud-api" validate:"required"`
+	ConsumerGroup         string        `yaml:"consumer_group" env:"CONSUMER_GROUP" env-default:"identity-service" validate:"required"`
 }
 
 func (c KafkaConfig) BrokerList() []string {

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"CrudTutorialProject/internal/eventcodec"
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/eventcodec"
+	"github.com/300nn/go-identity-service/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/user"
 )
 
 const dummyPasswordHash = "$2a$12$e80yq9gIe67Cqg4a0d9I6.L971nJ9.xP7pB/64QZz.7iG8JgP1G2m" // #nosec G101 -- fixed dummy bcrypt hash, not a credential; used to equalize login work for unknown users

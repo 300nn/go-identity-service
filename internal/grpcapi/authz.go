@@ -3,8 +3,8 @@ package grpcapi
 import (
 	"context"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/user"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"CrudTutorialProject/internal/response"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/response"
+	"github.com/300nn/go-identity-service/internal/user"
 )
 
 type MiddleWare struct {

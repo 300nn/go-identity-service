@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"CrudTutorialProject/internal/eventcodec"
-	"CrudTutorialProject/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/eventcodec"
+	"github.com/300nn/go-identity-service/internal/outbox"
 )
 
 func newTestWorker(t *testing.T, store outbox.Store, publisher outbox.Publisher) *outbox.Worker {

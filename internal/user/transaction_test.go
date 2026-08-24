@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"testing"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/eventcodec"
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/testutils"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/eventcodec"
+	"github.com/300nn/go-identity-service/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/testutils"
+	"github.com/300nn/go-identity-service/internal/user"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"

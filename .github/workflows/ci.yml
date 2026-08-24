@@ -109,4 +109,4 @@ jobs:
 
       - name: Build image
         run: |
-          docker build -t go-crud-api:ci .
+          docker build -t identity-service:ci .

@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"CrudTutorialProject/internal/testutils"
+	"github.com/300nn/go-identity-service/internal/testutils"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/user"
 )
 
 func TestPostgresRefreshTokenRepository_CreateAndFindByHash(t *testing.T) {

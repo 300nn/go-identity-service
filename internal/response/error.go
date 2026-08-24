@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"CrudTutorialProject/internal/apperror"
+	"github.com/300nn/go-identity-service/internal/apperror"
 )
 
 type ErrorBody struct {

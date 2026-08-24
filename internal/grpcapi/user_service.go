@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"CrudTutorialProject/internal/apperror"
-	userapiv1 "CrudTutorialProject/internal/gen/api/user/v1"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/apperror"
+	userapiv1 "github.com/300nn/go-identity-service/internal/gen/api/user/v1"
+	"github.com/300nn/go-identity-service/internal/user"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

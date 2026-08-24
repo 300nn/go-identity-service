@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"CrudTutorialProject/internal/apperror"
+	"github.com/300nn/go-identity-service/internal/apperror"
 
 	"github.com/go-playground/validator/v10"
 )

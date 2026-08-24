@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"CrudTutorialProject/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/outbox"
 )
 
 var errCreateOutboxEventFailed = errors.New("create outbox event failed")

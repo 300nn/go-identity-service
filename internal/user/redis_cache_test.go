@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"CrudTutorialProject/internal/testutils"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/testutils"
+	"github.com/300nn/go-identity-service/internal/user"
 )
 
 func TestRedisCache_SetAndGetUser(t *testing.T) {

@@ -1,17 +1,17 @@
 services:
   postgres:
     image: postgres:17
-    container_name: go-crud-postgres
+    container_name: identity-postgres
     environment:
-      POSTGRES_DB: go_crud
-      POSTGRES_USER: go_crud
-      POSTGRES_PASSWORD: go_crud
+      POSTGRES_DB: identity_service
+      POSTGRES_USER: identity_service
+      POSTGRES_PASSWORD: identity_service
     ports:
       - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U go_crud -d go_crud" ]
+      test: [ "CMD-SHELL", "pg_isready -U identity_service -d identity_service" ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -19,7 +19,7 @@ services:
 
   redis:
     image: redis:8-alpine
-    container_name: go-crud-redis
+    container_name: identity-redis
     ports:
       - "16379:6379"
     healthcheck:
@@ -31,7 +31,7 @@ services:
 
   kafka:
     image: apache/kafka:4.3.1
-    container_name: go-crud-kafka
+    container_name: identity-kafka
     ports:
       - "19092:19092"
     environment:
@@ -57,7 +57,7 @@ services:
 
   kafka-init:
     image: apache/kafka:4.3.1
-    container_name: go-crud-kafka-init
+    container_name: identity-kafka-init
     depends_on:
       kafka:
         condition: service_healthy
@@ -70,18 +70,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: go-crud-migrate
+    container_name: identity-migrate
     entrypoint: [ "/app/migrate" ]
     environment:
       APP_ENVIRONMENT: local
-      APP_NAME: go-crud-api
+      APP_NAME: identity-service
       APP_VERSION: local
 
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
-      DATABASE_NAME: go_crud
-      DATABASE_USER: go_crud
-      DATABASE_PASSWORD: go_crud
+      DATABASE_NAME: identity_service
+      DATABASE_USER: identity_service
+      DATABASE_PASSWORD: identity_service
 
       LOG_LEVEL: info
     depends_on:
@@ -93,7 +93,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: go-crud-api
+    container_name: identity-service
     environment:
       HTTP_HOST: 0.0.0.0
       HTTP_PORT: 8080
@@ -108,7 +108,7 @@ services:
       TIMEOUTS_KAFKA_CONSUME: 10s
 
       APP_ENVIRONMENT: local
-      APP_NAME: go-crud-api
+      APP_NAME: identity-service
       APP_VERSION: local
 
       GRPC_HOST: 0.0.0.0
@@ -117,9 +117,9 @@ services:
 
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
-      DATABASE_NAME: go_crud
-      DATABASE_USER: go_crud
-      DATABASE_PASSWORD: go_crud
+      DATABASE_NAME: identity_service
+      DATABASE_USER: identity_service
+      DATABASE_PASSWORD: identity_service
       DATABASE_POOL_MAX_CONS: 10
       DATABASE_POOL_MIN_CONS: 1
       DATABASE_POOL_MAX_CON_LIFE_TIME: 1h
@@ -130,7 +130,7 @@ services:
       KAFKA_OUTBOX_TOPIC: outbox.events
       KAFKA_PRODUCER_BATCH_MAX_BYTES: 1048576
       KAFKA_PRODUCER_LINGER: 10ms
-      KAFKA_CONSUMER_GROUP: go-crud-api
+      KAFKA_CONSUMER_GROUP: identity-service
 
       AUTH_JWT_SECRET: local-dev-secret-change-me-please-32
       AUTH_ACCESS_TOKEN_TTL: 15m

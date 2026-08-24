@@ -1,9 +1,9 @@
 package ratelimit
 
 import (
-	"CrudTutorialProject/internal/timex"
 	"context"
 	"fmt"
+	"github.com/300nn/go-identity-service/internal/timex"
 	"time"
 
 	"github.com/redis/go-redis/v9"

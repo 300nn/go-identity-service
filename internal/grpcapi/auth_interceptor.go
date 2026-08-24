@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/user"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

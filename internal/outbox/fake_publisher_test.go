@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"CrudTutorialProject/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/outbox"
 )
 
 var errPublishFailed = errors.New("publish failed")

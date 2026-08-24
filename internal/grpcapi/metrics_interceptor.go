@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"CrudTutorialProject/internal/metrics"
+	"github.com/300nn/go-identity-service/internal/metrics"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"

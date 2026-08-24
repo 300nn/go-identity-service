@@ -1,6 +1,6 @@
 package auth
 
-import "CrudTutorialProject/internal/user"
+import "github.com/300nn/go-identity-service/internal/user"
 
 type RegisterRequest struct {
 	Name     string `json:"name" validate:"required,min=2,max=100"`

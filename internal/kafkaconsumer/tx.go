@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"CrudTutorialProject/internal/audit"
+	"github.com/300nn/go-identity-service/internal/audit"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

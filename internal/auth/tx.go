@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"CrudTutorialProject/internal/outbox"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/user"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

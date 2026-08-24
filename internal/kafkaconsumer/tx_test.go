@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"CrudTutorialProject/internal/kafkaconsumer"
-	"CrudTutorialProject/internal/testutils"
+	"github.com/300nn/go-identity-service/internal/kafkaconsumer"
+	"github.com/300nn/go-identity-service/internal/testutils"
 )
 
 var errTxFailed = errors.New("tx failed")

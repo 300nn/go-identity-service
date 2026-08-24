@@ -3,7 +3,7 @@ package eventcodec
 import (
 	"fmt"
 
-	usereventv1 "CrudTutorialProject/internal/gen/events/user/v1"
+	usereventv1 "github.com/300nn/go-identity-service/internal/gen/events/user/v1"
 
 	"google.golang.org/protobuf/proto"
 )

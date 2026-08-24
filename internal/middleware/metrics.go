@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"CrudTutorialProject/internal/metrics"
+	"github.com/300nn/go-identity-service/internal/metrics"
 )
 
 func Metrics(m *metrics.Metrics) func(http.Handler) http.Handler {

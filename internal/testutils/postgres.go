@@ -56,9 +56,9 @@ func sharedPostgresPool(t *testing.T) *pgxpool.Pool {
 		postgresContainer, postgresErr = postgres.Run(
 			ctx,
 			"postgres:17",
-			postgres.WithDatabase("go_crud_test"),
-			postgres.WithUsername("go_crud"),
-			postgres.WithPassword("go_crud"),
+			postgres.WithDatabase("identity_service_test"),
+			postgres.WithUsername("identity_service"),
+			postgres.WithPassword("identity_service"),
 			postgres.BasicWaitStrategies(),
 		)
 		if postgresErr != nil {

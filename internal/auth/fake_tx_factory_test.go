@@ -3,10 +3,10 @@ package auth_test
 import (
 	"context"
 
-	"CrudTutorialProject/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/outbox"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/user"
 )
 
 type fakeTxFactory struct {

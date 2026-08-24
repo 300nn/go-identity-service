@@ -4,14 +4,14 @@ import (
 	"testing"
 	"time"
 
-	"CrudTutorialProject/internal/auth"
-	"CrudTutorialProject/internal/user"
+	"github.com/300nn/go-identity-service/internal/auth"
+	"github.com/300nn/go-identity-service/internal/user"
 )
 
 const testJWTSecret = "test-secret-with-at-least-32-characters"
 
 func TestTokenManager_GenerateAndParse(t *testing.T) {
-	manager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	manager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 
 	token, err := manager.Generate(12, "alex@ee.com", "USER")
 	if err != nil {
@@ -28,8 +28,8 @@ func TestTokenManager_GenerateAndParse(t *testing.T) {
 		t.Fatalf("Error parsing token: %v", err)
 	}
 
-	if claims.Issuer != "go-crud-api" {
-		t.Fatalf("Expected issuer to be %s, got %s", "go-crud-api", claims.Issuer)
+	if claims.Issuer != "identity-service" {
+		t.Fatalf("Expected issuer to be %s, got %s", "identity-service", claims.Issuer)
 	}
 
 	if claims.UserID != 12 {
@@ -46,7 +46,7 @@ func TestTokenManager_GenerateAndParse(t *testing.T) {
 }
 
 func TestTokenManager_Parse_WrongSecret(t *testing.T) {
-	manager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "go-crud-api")
+	manager := auth.NewTokenManager(testJWTSecret, 15*time.Minute, "identity-service")
 
 	token, err := manager.Generate(123, "alex@example.com", "USER")
 	if err != nil {
@@ -56,7 +56,7 @@ func TestTokenManager_Parse_WrongSecret(t *testing.T) {
 	otherManager := auth.NewTokenManager(
 		"another-secret-with-at-least-32-characters",
 		15*time.Minute,
-		"go-crud-api",
+		"identity-service",
 	)
 
 	_, err = otherManager.Parse(token)
@@ -66,7 +66,7 @@ func TestTokenManager_Parse_WrongSecret(t *testing.T) {
 }
 
 func TestTokenManager_Parse_ExpiredToken(t *testing.T) {
-	manager := auth.NewTokenManager(testJWTSecret, -time.Minute, "go-crud-api")
+	manager := auth.NewTokenManager(testJWTSecret, -time.Minute, "identity-service")
 
 	token, err := manager.Generate(123, "alex@example.com", "USER")
 	if err != nil {

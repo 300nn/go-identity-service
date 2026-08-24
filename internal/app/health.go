@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"CrudTutorialProject/internal/response"
+	"github.com/300nn/go-identity-service/internal/response"
 )
 
 type Pinger interface {

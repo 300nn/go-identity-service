@@ -3,8 +3,8 @@ package audit_test
 import (
 	"testing"
 
-	"CrudTutorialProject/internal/audit"
-	"CrudTutorialProject/internal/testutils"
+	"github.com/300nn/go-identity-service/internal/audit"
+	"github.com/300nn/go-identity-service/internal/testutils"
 )
 
 func TestPostgresStore_CreateUserAuditEvent(t *testing.T) {

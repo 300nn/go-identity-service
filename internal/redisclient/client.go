@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"CrudTutorialProject/internal/config"
+	"github.com/300nn/go-identity-service/internal/config"
 
 	"github.com/redis/go-redis/v9"
 )

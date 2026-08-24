@@ -3,8 +3,8 @@ package kafkaconsumer_test
 import (
 	"testing"
 
-	"CrudTutorialProject/internal/kafkaconsumer"
-	"CrudTutorialProject/internal/testutils"
+	"github.com/300nn/go-identity-service/internal/kafkaconsumer"
+	"github.com/300nn/go-identity-service/internal/testutils"
 )
 
 func TestPostgresIdempotencyStore_MarkAndCheckProcessed(t *testing.T) {

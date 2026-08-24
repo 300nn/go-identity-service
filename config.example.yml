@@ -1,5 +1,5 @@
 app:
-  name: "go-crud-api"
+  name: "identity-service"
   version: "user_test"
   environment: "local"
 
@@ -20,7 +20,7 @@ grpc:
 database:
   host: "localhost"
   port: 5432
-  name: "go_crud"
+  name: "identity_service"
   user: "postgres"
   password: "change-me"
   ssl: "disable"
@@ -48,7 +48,7 @@ kafka:
   outbox_topic: "outbox.events"
   producer_batch_max_bytes: 1048576
   producer_linger: 10ms
-  consumer_group: "go-crud-api"
+  consumer_group: "identity-service"
 
 cors:
   allowed_origins: "http://localhost:3000"

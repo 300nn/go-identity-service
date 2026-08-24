@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"CrudTutorialProject/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/outbox"
 )
 
 var (

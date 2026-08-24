@@ -1,11 +1,12 @@
 package outbox
 
 import (
-	"CrudTutorialProject/internal/timex"
 	"context"
 	"fmt"
 	"strconv"
 	"time"
+
+	"github.com/300nn/go-identity-service/internal/timex"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -36,7 +37,7 @@ func NewKafkaPublisher(cfg KafkaPublisherConfig) (*KafkaPublisher, error) {
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(cfg.Brokers...),
 		kgo.DefaultProduceTopic(cfg.Topic),
-		kgo.ClientID("go-crud-api"),
+		kgo.ClientID("identity-service"),
 	}
 
 	if cfg.ProducerBatchMaxBytes > 0 {
