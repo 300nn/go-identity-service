@@ -14,7 +14,7 @@ type fakePublisher struct {
 	err       error
 }
 
-func (p *fakePublisher) Publish(ctx context.Context, event outbox.Event) error {
+func (p *fakePublisher) Publish(_ context.Context, event outbox.Event) error {
 	if p.err != nil {
 		return p.err
 	}

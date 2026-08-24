@@ -52,7 +52,7 @@ func (r *FakeRepository) Create(ctx context.Context, usr user.User) (user.User, 
 	return usr, nil
 }
 
-func (r *FakeRepository) FindByID(ctx context.Context, id int64) (user.User, error) {
+func (r *FakeRepository) FindByID(_ context.Context, id int64) (user.User, error) {
 	r.findByIDCalls++
 	found, ok := r.users[id]
 	if !ok {
@@ -62,7 +62,7 @@ func (r *FakeRepository) FindByID(ctx context.Context, id int64) (user.User, err
 	return found, nil
 }
 
-func (r *FakeRepository) FindByEmail(ctx context.Context, email string) (user.User, error) {
+func (r *FakeRepository) FindByEmail(_ context.Context, email string) (user.User, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 
 	for _, u := range r.users {
@@ -74,7 +74,7 @@ func (r *FakeRepository) FindByEmail(ctx context.Context, email string) (user.Us
 	return user.User{}, user.ErrUserNotFound
 }
 
-func (r *FakeRepository) FindAll(ctx context.Context) ([]user.User, error) {
+func (r *FakeRepository) FindAll(_ context.Context) ([]user.User, error) {
 	users := make([]user.User, 0, len(r.users))
 
 	for _, u := range r.users {
@@ -88,7 +88,7 @@ func (r *FakeRepository) FindAll(ctx context.Context) ([]user.User, error) {
 	return users, nil
 }
 
-func (r *FakeRepository) List(ctx context.Context, filter user.ListUsersFilter) (user.ListUsersResult, error) {
+func (r *FakeRepository) List(_ context.Context, filter user.ListUsersFilter) (user.ListUsersResult, error) {
 	email := strings.ToLower(strings.TrimSpace(filter.Email))
 
 	users := make([]user.User, 0, len(r.users))
@@ -138,7 +138,7 @@ func (r *FakeRepository) List(ctx context.Context, filter user.ListUsersFilter) 
 	}, nil
 }
 
-func (r *FakeRepository) Update(ctx context.Context, usr user.User) (user.User, error) {
+func (r *FakeRepository) Update(_ context.Context, usr user.User) (user.User, error) {
 	existing, ok := r.users[usr.ID]
 	if !ok {
 		return user.User{}, user.ErrUserNotFound
@@ -158,7 +158,7 @@ func (r *FakeRepository) Update(ctx context.Context, usr user.User) (user.User, 
 	return usr, nil
 }
 
-func (r *FakeRepository) Delete(ctx context.Context, id int64) error {
+func (r *FakeRepository) Delete(_ context.Context, id int64) error {
 	if _, ok := r.users[id]; !ok {
 		return user.ErrUserNotFound
 	}
@@ -167,7 +167,7 @@ func (r *FakeRepository) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (r *FakeRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+func (r *FakeRepository) ExistsByEmail(_ context.Context, email string) (bool, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 
 	for _, u := range r.users {
@@ -179,7 +179,7 @@ func (r *FakeRepository) ExistsByEmail(ctx context.Context, email string) (bool,
 	return false, nil
 }
 
-func (r *FakeRepository) CreateProfile(ctx context.Context, profile user.Profile) (user.Profile, error) {
+func (r *FakeRepository) CreateProfile(_ context.Context, profile user.Profile) (user.Profile, error) {
 	now := time.Now().UTC()
 
 	profile.ID = r.nextProfileID
@@ -192,7 +192,7 @@ func (r *FakeRepository) CreateProfile(ctx context.Context, profile user.Profile
 	return profile, nil
 }
 
-func (r *FakeRepository) CreateEvent(ctx context.Context, event user.Event) (user.Event, error) {
+func (r *FakeRepository) CreateEvent(_ context.Context, event user.Event) (user.Event, error) {
 	event.ID = r.nextEventID
 	event.CreatedAt = time.Now().UTC()
 

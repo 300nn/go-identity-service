@@ -20,7 +20,7 @@ func newFakeRefreshTokenRepository() *fakeRefreshTokenRepository {
 	}
 }
 
-func (r *fakeRefreshTokenRepository) CreateRefreshToken(ctx context.Context, token auth.RefreshToken) (auth.RefreshToken, error) {
+func (r *fakeRefreshTokenRepository) CreateRefreshToken(_ context.Context, token auth.RefreshToken) (auth.RefreshToken, error) {
 	token.ID = r.nextID
 	token.CreatedAt = time.Now()
 
@@ -30,7 +30,7 @@ func (r *fakeRefreshTokenRepository) CreateRefreshToken(ctx context.Context, tok
 	return token, nil
 }
 
-func (r *fakeRefreshTokenRepository) FindRefreshTokenByHash(ctx context.Context, hash string) (auth.RefreshToken, error) {
+func (r *fakeRefreshTokenRepository) FindRefreshTokenByHash(_ context.Context, hash string) (auth.RefreshToken, error) {
 	for _, token := range r.tokens {
 		if token.TokenHash == hash {
 			return token, nil
@@ -40,7 +40,7 @@ func (r *fakeRefreshTokenRepository) FindRefreshTokenByHash(ctx context.Context,
 	return auth.RefreshToken{}, auth.ErrRefreshTokenNotFound
 }
 
-func (r *fakeRefreshTokenRepository) RevokeRefreshToken(ctx context.Context, id int64) error {
+func (r *fakeRefreshTokenRepository) RevokeRefreshToken(_ context.Context, id int64) error {
 	token, ok := r.tokens[id]
 	if !ok {
 		return auth.ErrRefreshTokenNotFound
@@ -77,8 +77,8 @@ type failingCreateRefreshTokenStore struct {
 var errCreateRefreshTokenFailed = errors.New("create refresh token failed")
 
 func (s *failingCreateRefreshTokenStore) CreateRefreshToken(
-	ctx context.Context,
-	token auth.RefreshToken,
+	_ context.Context,
+	_ auth.RefreshToken,
 ) (auth.RefreshToken, error) {
 	return auth.RefreshToken{}, errCreateRefreshTokenFailed
 }

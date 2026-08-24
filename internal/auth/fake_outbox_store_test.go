@@ -23,7 +23,7 @@ func newFakeOutboxStore() *fakeOutboxStore {
 	}
 }
 
-func (s *fakeOutboxStore) Create(ctx context.Context, event outbox.Event) (outbox.Event, error) {
+func (s *fakeOutboxStore) Create(_ context.Context, event outbox.Event) (outbox.Event, error) {
 	if s.createErr != nil {
 		return outbox.Event{}, s.createErr
 	}

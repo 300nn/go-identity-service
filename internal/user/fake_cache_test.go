@@ -25,7 +25,7 @@ func newFakeUserCache() *fakeUserCache {
 	}
 }
 
-func (c *fakeUserCache) GetUser(ctx context.Context, id int64) (user.User, bool, error) {
+func (c *fakeUserCache) GetUser(_ context.Context, id int64) (user.User, bool, error) {
 	c.getCalls++
 
 	if c.getErr != nil {
@@ -36,7 +36,7 @@ func (c *fakeUserCache) GetUser(ctx context.Context, id int64) (user.User, bool,
 	return u, ok, nil
 }
 
-func (c *fakeUserCache) SetUser(ctx context.Context, u user.User, ttl time.Duration) error {
+func (c *fakeUserCache) SetUser(_ context.Context, u user.User, _ time.Duration) error {
 	c.setCalls++
 
 	if c.setErr != nil {
@@ -47,7 +47,7 @@ func (c *fakeUserCache) SetUser(ctx context.Context, u user.User, ttl time.Durat
 	return nil
 }
 
-func (c *fakeUserCache) DeleteUser(ctx context.Context, id int64) error {
+func (c *fakeUserCache) DeleteUser(_ context.Context, id int64) error {
 	c.deleteCalls++
 
 	if c.deleteErr != nil {

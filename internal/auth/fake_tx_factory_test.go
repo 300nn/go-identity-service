@@ -44,7 +44,7 @@ func newFakeTxFactoryWithStores(
 }
 
 func (f *fakeTxFactory) WithinTx(
-	ctx context.Context,
+	_ context.Context,
 	fn func(stores auth.TxStores) error,
 ) error {
 	usersSnapshot := copyUsers(f.userRepo.users)

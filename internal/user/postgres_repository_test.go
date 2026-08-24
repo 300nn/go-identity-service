@@ -1,43 +1,14 @@
 package user_test
 
 import (
-	"context"
-	"database/sql"
 	"errors"
-	"path/filepath"
-	"runtime"
 	"testing"
 
 	"CrudTutorialProject/internal/testutils"
 	"CrudTutorialProject/internal/user"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
 )
-
-func migratePostgres(t *testing.T, ctx context.Context, db *sql.DB) {
-	t.Helper()
-
-	if err := goose.SetDialect("pgx"); err != nil {
-		t.Fatalf("set goose dialect: %v", err)
-	}
-
-	if err := goose.UpContext(ctx, db, migrationsDir(t)); err != nil {
-		t.Fatalf("run migrations: %v", err)
-	}
-}
-
-func migrationsDir(t *testing.T) string {
-	t.Helper()
-
-	_, fileName, _, ok := runtime.Caller(0)
-
-	if !ok {
-		t.Fatal("get current file path")
-	}
-
-	return filepath.Join(filepath.Dir(fileName), "..", "..", "migrations")
-}
 
 func TestPostgresRepository_FindByID(t *testing.T) {
 	ctx := t.Context()
