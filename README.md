@@ -1,8 +1,20 @@
 # go-identity-service
 
+[![CI](https://github.com/300nn/go-identity-service/actions/workflows/ci.yml/badge.svg)](https://github.com/300nn/go-identity-service/actions/workflows/ci.yml)
+[![Release](https://github.com/300nn/go-identity-service/actions/workflows/release.yml/badge.svg)](https://github.com/300nn/go-identity-service/actions/workflows/release.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/300nn/go-identity-service)](https://goreportcard.com/report/github.com/300nn/go-identity-service)
+
 Production-like identity service written in Go.
 
 The project demonstrates how to build a backend service with authentication, PostgreSQL persistence, Redis cache and rate limiting, Kafka-based transactional outbox, gRPC API, Prometheus metrics, Docker packaging, and GitHub Actions CI/CD.
+
+## Project Status
+
+This is a portfolio-oriented production-like backend project.
+
+The service is not intended to be a full identity provider replacement. Its main purpose is to demonstrate backend
+engineering practices in Go: authentication, PostgreSQL transactions, Redis caching, Kafka outbox, gRPC, metrics,
+tracing, CI/CD, Docker packaging, and API documentation.
 
 ## Features
 
@@ -66,6 +78,12 @@ internal/
 ```
 
 The API writes domain changes and outbox events in the same PostgreSQL transaction. A background outbox worker publishes events to Kafka. Kafka consumers process events idempotently and store audit records.
+
+## Documentation
+
+- [OpenAPI specification](docs/openapi.yml)
+- [gRPC usage examples](docs/grpc.md)
+- [Production smoke test](scripts/smoke-prod.ps1)
 
 ## Local Development
 
@@ -388,6 +406,14 @@ ghcr.io/300nn/go-identity-service:0
 
 ## Development Commands
 
+Validate Docker Compose files:
+
+```bash
+docker compose -f docker-compose.yml config
+docker compose -f docker-compose.prod.yml --env-file .env.prod config
+docker compose -f docker-compose.docs.yml config
+```
+
 Format code:
 
 ```bash
@@ -430,10 +456,3 @@ powershell -ExecutionPolicy Bypass -File .\scripts\smoke-prod.ps1
 
 The smoke test starts the production-like Docker Compose stack, waits for /ready, checks /health and /metrics, and
 verifies that database migrations were applied.
-
-## Roadmap
-
-Planned improvements:
-
-- Add OpenTelemetry tracing
-- Add final repository polish

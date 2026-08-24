@@ -1,6 +1,6 @@
 services:
   swagger-ui:
-    image: swaggerapi/swagger-ui:latest
+    image: swaggerapi/swagger-ui:v5.32.14
     container_name: identity-swagger-ui
     restart: unless-stopped
     ports:
