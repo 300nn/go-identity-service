@@ -3,9 +3,10 @@ package kafkaconsumer
 import (
 	"context"
 	"fmt"
-	"github.com/300nn/go-identity-service/internal/timex"
 	"log/slog"
 	"time"
+
+	"github.com/300nn/go-identity-service/internal/timex"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )

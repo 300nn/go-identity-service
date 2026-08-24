@@ -26,7 +26,6 @@ func (f *fakeTxFactory) WithinTx(_ context.Context, fn func(stores user.TxStores
 
 	usersSnapshot := copyUsers(f.repo.users)
 	profilesSnapshot := copyProfiles(f.repo.profiles)
-	userEventsSnapshot := copyUserEvents(f.repo.events)
 	outboxSnapshot := copyOutboxEvents(f.outboxStore.events)
 
 	nextUserIDSnapshot := f.repo.nextUserID
@@ -44,7 +43,6 @@ func (f *fakeTxFactory) WithinTx(_ context.Context, fn func(stores user.TxStores
 
 	f.repo.users = usersSnapshot
 	f.repo.profiles = profilesSnapshot
-	f.repo.events = userEventsSnapshot
 	f.repo.nextUserID = nextUserIDSnapshot
 	f.repo.nextProfileID = nextProfileIDSnapshot
 	f.repo.nextEventID = nextEventIDSnapshot
@@ -67,14 +65,6 @@ func copyProfiles(src map[int64]user.Profile) map[int64]user.Profile {
 	dst := make(map[int64]user.Profile, len(src))
 	for id, profile := range src {
 		dst[id] = profile
-	}
-	return dst
-}
-
-func copyUserEvents(src map[int64]user.Event) map[int64]user.Event {
-	dst := make(map[int64]user.Event, len(src))
-	for id, event := range src {
-		dst[id] = event
 	}
 	return dst
 }

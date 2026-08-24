@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"fmt"
+
 	"github.com/300nn/go-identity-service/internal/outbox"
 
 	"github.com/jackc/pgx/v5/pgxpool"

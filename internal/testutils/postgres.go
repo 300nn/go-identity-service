@@ -133,7 +133,6 @@ func cleanPostgres(t *testing.T, pool *pgxpool.Pool) {
 		    processed_kafka_events,
 			outbox_events,
 			refresh_tokens,
-			user_events,
 			user_profiles,
 			users
 		RESTART IDENTITY CASCADE

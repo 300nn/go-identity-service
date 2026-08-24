@@ -313,30 +313,6 @@ func (r *PostgresRepository) CreateProfile(ctx context.Context, profile Profile)
 
 	return created, nil
 }
-
-func (r *PostgresRepository) CreateEvent(ctx context.Context, event Event) (Event, error) {
-	const query = `
-		INSERT INTO user_events (user_id, event_type, payload)
-		VALUES ($1, $2, $3::jsonb)
-		RETURNING id, user_id, event_type, payload::text, created_at
-	`
-
-	var created Event
-
-	err := r.db.QueryRow(ctx, query, event.UserID, event.EventType, event.Payload).Scan(
-		&created.ID,
-		&created.UserID,
-		&created.EventType,
-		&created.Payload,
-		&created.CreatedAt,
-	)
-	if err != nil {
-		return Event{}, fmt.Errorf("insert user event: %w", err)
-	}
-
-	return created, nil
-}
-
 func usersOrderBy(sort string) string {
 	switch sort {
 	case "id_asc":

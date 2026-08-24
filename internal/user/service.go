@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/300nn/go-identity-service/internal/eventcodec"
-	"github.com/300nn/go-identity-service/internal/outbox"
 	"log/slog"
 	"net/mail"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/300nn/go-identity-service/internal/eventcodec"
+	"github.com/300nn/go-identity-service/internal/outbox"
 
 	"github.com/300nn/go-identity-service/internal/apperror"
 )

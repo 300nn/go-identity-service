@@ -3,8 +3,9 @@ package ratelimit
 import (
 	"context"
 	"fmt"
-	"github.com/300nn/go-identity-service/internal/timex"
 	"time"
+
+	"github.com/300nn/go-identity-service/internal/timex"
 
 	"github.com/redis/go-redis/v9"
 )

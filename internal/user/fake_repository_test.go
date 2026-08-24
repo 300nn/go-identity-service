@@ -16,7 +16,6 @@ type FakeRepository struct {
 
 	users    map[int64]user.User
 	profiles map[int64]user.Profile
-	events   map[int64]user.Event
 
 	findByIDCalls int
 }
@@ -28,7 +27,6 @@ func newFakeRepository() *FakeRepository {
 		nextEventID:   1,
 		users:         make(map[int64]user.User),
 		profiles:      make(map[int64]user.Profile),
-		events:        make(map[int64]user.Event),
 	}
 }
 
@@ -190,14 +188,4 @@ func (r *FakeRepository) CreateProfile(_ context.Context, profile user.Profile) 
 	r.nextProfileID++
 
 	return profile, nil
-}
-
-func (r *FakeRepository) CreateEvent(_ context.Context, event user.Event) (user.Event, error) {
-	event.ID = r.nextEventID
-	event.CreatedAt = time.Now().UTC()
-
-	r.events[event.ID] = event
-	r.nextEventID++
-
-	return event, nil
 }

@@ -15,7 +15,6 @@ type Repository interface {
 	FindByEmail(ctx context.Context, email string) (User, error)
 
 	CreateProfile(ctx context.Context, profile Profile) (Profile, error)
-	CreateEvent(ctx context.Context, event Event) (Event, error)
 }
 
 type ListUsersFilter struct {

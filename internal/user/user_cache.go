@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/300nn/go-identity-service/internal/timex"
 	"strconv"
 	"time"
+
+	"github.com/300nn/go-identity-service/internal/timex"
 
 	"github.com/redis/go-redis/v9"
 )
