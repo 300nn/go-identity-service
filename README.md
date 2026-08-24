@@ -362,14 +362,20 @@ Build Docker image:
 docker build -t identity-service:local .
 ```
 
+### Production-like smoke test
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-prod.ps1
+```
+
+The smoke test starts the production-like Docker Compose stack, waits for /ready, checks /health and /metrics, and
+verifies that database migrations were applied.
+
 ## Roadmap
 
 Planned improvements:
 
 - Add database operation timeouts to repositories
 - Add OpenTelemetry tracing
-- Add integration smoke tests for production-like compose
-- Add Kubernetes manifests
-- Add deployment documentation
 - Improve REST API examples
 - Add architecture diagram
