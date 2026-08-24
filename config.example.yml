@@ -22,7 +22,7 @@ database:
   port: 5432
   name: "go_crud"
   user: "postgres"
-  password: "root"
+  password: "change-me"
   ssl: "disable"
   pool:
     min_cons: 1
@@ -32,8 +32,9 @@ database:
     health_check_period: 1m
 
 auth:
-  jwt_secret: "local-dev-secret-change-me-please-32"
+  jwt_secret: "change-me-use-env-in-production-change-me-use-env-64-chars-min"
   access_token_ttl: 15m
+  refresh_token_ttl: 720h
 
 worker:
   interval: 5s
@@ -49,11 +50,22 @@ kafka:
   producer_linger: 10ms
   consumer_group: "go-crud-api"
 
+cors:
+  allowed_origins: "http://localhost:3000"
+  allowed_methods: "GET,POST,PUT,DELETE,OPTIONS"
+  allowed_headers: "Authorization,Content-Type,X-Request-ID"
+
 redis:
   host: "localhost"
   port: 16379
   password: ""
   db: 0
+
+timeouts:
+  database_query: 2s
+  redis_command: 500ms
+  kafka_produce: 5s
+  kafka_consume: 10s
 
 cache:
   user_ttl: 5m

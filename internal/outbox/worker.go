@@ -73,7 +73,7 @@ func (w *Worker) Run(ctx context.Context) error {
 		default:
 		}
 
-		processCtx, cancel := context.WithTimeout(context.Background(), w.cfg.ProcessTimeout)
+		processCtx, cancel := context.WithTimeout(ctx, w.cfg.ProcessTimeout)
 
 		if err := w.ProcessOnce(processCtx); err != nil {
 			w.logger.Error("outbox process once failed", slog.Any("error", err))

@@ -12,7 +12,7 @@ func TestRedisLimiter_Allow(t *testing.T) {
 	ctx := t.Context()
 
 	redisClient := testutils.NewTestRedisClient(t)
-	limiter := ratelimit.NewRedisLimiter(redisClient, "go-crud")
+	limiter := ratelimit.NewRedisLimiter(redisClient, "go-crud", time.Second)
 
 	key := "auth:login:email_ip:alex@example.com:127.0.0.1"
 
@@ -46,7 +46,7 @@ func TestRedisLimiter_Allow_SetsTTL(t *testing.T) {
 	ctx := t.Context()
 
 	redisClient := testutils.NewTestRedisClient(t)
-	limiter := ratelimit.NewRedisLimiter(redisClient, "test")
+	limiter := ratelimit.NewRedisLimiter(redisClient, "test", time.Second)
 
 	key := "auth:register:ip:127.0.0.1"
 	redisKey := "test:" + key
@@ -77,7 +77,7 @@ func TestRedisLimiter_Allow_ResetsAfterWindow(t *testing.T) {
 	ctx := t.Context()
 
 	redisClient := testutils.NewTestRedisClient(t)
-	limiter := ratelimit.NewRedisLimiter(redisClient, "test")
+	limiter := ratelimit.NewRedisLimiter(redisClient, "test", time.Second)
 
 	key := "auth:refresh:ip:127.0.0.1"
 	window := 100 * time.Millisecond

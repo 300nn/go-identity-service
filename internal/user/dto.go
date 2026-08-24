@@ -14,21 +14,21 @@ type ListUsersRequest struct {
 type CreateUserRequest struct {
 	Name     string `json:"name" validate:"required,min=2,max=100"`
 	Email    string `json:"email" validate:"required,email,max=255"`
-	Age      int    `json:"age" validate:"gte=0,lte=150"`
+	Age      int32  `json:"age" validate:"gte=0,lte=150"`
 	Password string `json:"password" validate:"required,min=8,max=72"`
 }
 
 type UpdateUserRequest struct {
 	Name  string `json:"name" validate:"required,min=2,max=100"`
 	Email string `json:"email" validate:"required,email,max=255"`
-	Age   int    `json:"age" validate:"gte=0,lte=150"`
+	Age   int32  `json:"age" validate:"gte=0,lte=150"`
 }
 
 type UserResponse struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
-	Age       int       `json:"age"`
+	Age       int32     `json:"age"`
 	Role      Role      `json:"role"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -37,7 +37,7 @@ type UserResponse struct {
 type CreateUserWithProfileRequest struct {
 	Name     string `json:"name" validate:"required,min=2,max=100"`
 	Email    string `json:"email" validate:"required,email,max=255"`
-	Age      int    `json:"age" validate:"gte=0,lte=150"`
+	Age      int32  `json:"age" validate:"gte=0,lte=150"`
 	Bio      string `json:"bio" validate:"max=1000"`
 	Password string `json:"password" validate:"required,min=8,max=72"`
 }

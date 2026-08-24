@@ -1,7 +1,6 @@
 .idea/
 *.iml
 .env
-.git
 *.exe
 /bin/
 
@@ -11,7 +10,6 @@
 *.so
 *.dylib
 
-*.py
-*.txt
+
 go.work
 go.work.sum

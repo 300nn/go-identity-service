@@ -109,7 +109,7 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, hasher, dbPool, redisClient, tokenManager)
 
 	userTxFactory := user.NewPostgresTxRepositoryFactory(dbPool)
-	userCache := user.NewRedisCache(redisClient, "go-crud")
+	userCache := user.NewRedisCache(redisClient, "go-crud", cfg.Timeouts.RedisCommand)
 	observedUserCache := user.NewObservedCache(
 		userCache,
 		appmetrics.NewCacheObserver(metrics),
@@ -148,6 +148,12 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	handler := middleware.Chain(
 		mux,
 		middleware.RequestId,
+		middleware.SecurityHeaders,
+		middleware.CORS(middleware.CORSConfig{
+			AllowedOrigins: cfg.CORS.Origins(),
+			AllowedMethods: cfg.CORS.Methods(),
+			AllowedHeaders: cfg.CORS.Headers(),
+		}),
 		middleware.Metrics(metrics),
 		middleware.Logging(log),
 		middleware.Recovery(log),
@@ -173,12 +179,17 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	select {
 	case err := <-errCh:
+		shuttingDown.Store(true)
+
 		log.Info("stopping grpc server")
 		grpcShutdown()
+
 		log.Info("stopping outbox worker")
 		outboxShutdown()
+
 		log.Info("stopping kafka consumer")
 		consumerShutdown()
+
 		return err
 	case <-ctx.Done():
 		log.Info("shutdown signal received")
@@ -308,7 +319,7 @@ func initAuthModule(
 		cfg.Auth.RefreshTokenTTL,
 	)
 
-	limiter := ratelimit.NewRedisLimiter(redisClient, "go-crud")
+	limiter := ratelimit.NewRedisLimiter(redisClient, "go-crud", cfg.Timeouts.RedisCommand)
 
 	authHandler := auth.NewHandler(authService, log, validator, limiter, cfg.RateLimit)
 	authMiddleware := auth.NewMiddleWare(tokenManager)
@@ -331,6 +342,7 @@ func initOutboxModule(
 		Topic:                 cfg.Kafka.OutboxTopic,
 		ProducerLinger:        cfg.Kafka.ProducerLinger,
 		ProducerBatchMaxBytes: cfg.Kafka.ProducerBatchMaxBytes,
+		ProduceTimeout:        cfg.Timeouts.KafkaProduce,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create kafka publisher: %w", err)
@@ -357,7 +369,7 @@ func initOutboxModule(
 
 	var shutdownOnce sync.Once
 
-	waitTimeout := cfg.Worker.ProcessTimeout + 5*time.Second
+	waitTimeout := cfg.Worker.ProcessTimeout + cfg.Timeouts.KafkaProduce
 
 	shutdownFunc := func() {
 		shutdownOnce.Do(func() {
@@ -392,9 +404,10 @@ func initKafkaConsumerModule(
 
 	consumer, err := kafkaconsumer.NewConsumer(
 		kafkaconsumer.Config{
-			Brokers:       cfg.Kafka.BrokerList(),
-			Topic:         cfg.Kafka.OutboxTopic,
-			ConsumerGroup: cfg.Kafka.ConsumerGroup,
+			Brokers:        cfg.Kafka.BrokerList(),
+			Topic:          cfg.Kafka.OutboxTopic,
+			ConsumerGroup:  cfg.Kafka.ConsumerGroup,
+			ProcessTimeout: cfg.Timeouts.KafkaConsume,
 		},
 		router,
 		txFactory,
@@ -417,7 +430,7 @@ func initKafkaConsumerModule(
 	}()
 	var shutdownOnce sync.Once
 
-	waitTimeout := cfg.Worker.ProcessTimeout + 5*time.Second
+	waitTimeout := cfg.Worker.ProcessTimeout + cfg.Timeouts.KafkaConsume
 
 	shutdownFunc := func() {
 		shutdownOnce.Do(func() {

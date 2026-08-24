@@ -33,6 +33,8 @@ type Config struct {
 	Cache     user.CacheConfig     `yaml:"cache" env-prefix:"CACHE_"`
 	Worker    outbox.WorkerConfig  `yaml:"worker" env-prefix:"WORKER_"`
 	Kafka     KafkaConfig          `yaml:"kafka" env-prefix:"KAFKA_"`
+	Timeouts  TimeoutsConfig       `yaml:"timeouts" env-prefix:"TIMEOUTS_"`
+	CORS      CORSConfig           `yaml:"cors" env-prefix:"CORS_"`
 }
 
 type HTTPConfig struct {
@@ -43,6 +45,13 @@ type HTTPConfig struct {
 	IdleTimeout       time.Duration `yaml:"idle_timeout" env:"IDLE_TIMEOUT" env-default:"1m" validate:"gt=0"`
 	ReadHeaderTimeout time.Duration `yaml:"read_header_timeout" env:"READ_HEADER_TIMEOUT" env-default:"5s" validate:"gt=0"`
 	ShutdownTimeout   time.Duration `yaml:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT" env-default:"10s" validate:"gt=0"`
+}
+
+type TimeoutsConfig struct {
+	DatabaseQuery time.Duration `yaml:"database_query" env:"DATABASE_QUERY" env-default:"2s" validate:"gt=0"`
+	RedisCommand  time.Duration `yaml:"redis_command" env:"REDIS_COMMAND" env-default:"500ms" validate:"gt=0"`
+	KafkaProduce  time.Duration `yaml:"kafka_produce" env:"KAFKA_PRODUCE" env-default:"5s" validate:"gt=0"`
+	KafkaConsume  time.Duration `yaml:"kafka_consume" env:"KAFKA_CONSUME" env-default:"10s" validate:"gt=0"`
 }
 
 type DatabaseConfig struct {
@@ -94,6 +103,38 @@ type RedisConfig struct {
 	Port     int    `yaml:"port" env:"PORT" env-default:"6379" validate:"gte=1,lte=65535"`
 	Password string `yaml:"password" env:"PASSWORD"`
 	DB       int    `yaml:"db" env:"DB" env-default:"0" validate:"gte=0"`
+}
+
+type CORSConfig struct {
+	AllowedOrigins string `yaml:"allowed_origins" env:"ALLOWED_ORIGINS" env-default:"http://localhost:3000"`
+	AllowedMethods string `yaml:"allowed_methods" env:"ALLOWED_METHODS" env-default:"GET,POST,PUT,DELETE,OPTIONS"`
+	AllowedHeaders string `yaml:"allowed_headers" env:"ALLOWED_HEADERS" env-default:"Authorization,Content-Type,X-Request-ID"`
+}
+
+func splitCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item != "" {
+			result = append(result, item)
+		}
+	}
+
+	return result
+}
+
+func (c CORSConfig) Origins() []string {
+	return splitCSV(c.AllowedOrigins)
+}
+
+func (c CORSConfig) Methods() []string {
+	return splitCSV(c.AllowedMethods)
+}
+
+func (c CORSConfig) Headers() []string {
+	return splitCSV(c.AllowedHeaders)
 }
 
 type KafkaConfig struct {
@@ -238,6 +279,14 @@ func (c Config) Validate() error {
 	if c.App.Environment == "production" &&
 		c.Auth.JWTSecret == "local-dev-secret-change-me-please-32" {
 		return errors.New("auth jwt secret must be changed in production")
+	}
+
+	if c.App.Environment == "production" && len(c.Auth.JWTSecret) < 64 {
+		return errors.New("auth jwt secret must be at least 64 characters in production")
+	}
+
+	if c.App.Environment == "production" && c.Database.SSL == "disable" {
+		return errors.New("database ssl must be enabled in production")
 	}
 
 	return nil

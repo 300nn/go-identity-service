@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"CrudTutorialProject/internal/timex"
 	"context"
 	"fmt"
 	"time"
@@ -17,14 +18,16 @@ var incrAndExpireScript = redis.NewScript(`
 			`)
 
 type RedisLimiter struct {
-	client *redis.Client
-	prefix string
+	client  *redis.Client
+	prefix  string
+	timeout time.Duration
 }
 
-func NewRedisLimiter(client *redis.Client, prefix string) *RedisLimiter {
+func NewRedisLimiter(client *redis.Client, prefix string, timeout time.Duration) *RedisLimiter {
 	return &RedisLimiter{
-		client: client,
-		prefix: prefix,
+		client:  client,
+		prefix:  prefix,
+		timeout: timeout,
 	}
 }
 
@@ -39,6 +42,9 @@ func (l *RedisLimiter) Allow(ctx context.Context, key string, limit int, window 
 	if ttlMillis <= 0 {
 		return false, fmt.Errorf("rate limit window must be at least 1 millisecond")
 	}
+
+	ctx, cancel := timex.WithTimeout(ctx, l.timeout)
+	defer cancel()
 
 	count, err := incrAndExpireScript.Run(
 		ctx,

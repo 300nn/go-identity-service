@@ -1,6 +1,6 @@
 module CrudTutorialProject
 
-go 1.26
+go 1.26.7
 
 require (
 	github.com/go-playground/validator/v10 v10.30.3

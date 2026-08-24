@@ -1,11 +1,14 @@
 package user
 
 import (
+	"CrudTutorialProject/internal/eventcodec"
+	"CrudTutorialProject/internal/outbox"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/mail"
+	"strconv"
 	"strings"
 	"time"
 
@@ -63,20 +66,20 @@ type ListUsersOutput struct {
 type CreateUserInput struct {
 	Name     string
 	Email    string
-	Age      int
+	Age      int32
 	Password string
 }
 
 type UpdateUserInput struct {
 	Name  string
 	Email string
-	Age   int
+	Age   int32
 }
 
 type CreateUserWithProfileInput struct {
 	Name     string
 	Email    string
-	Age      int
+	Age      int32
 	Password string
 	Bio      string
 }
@@ -87,6 +90,10 @@ type ProfileWithUser struct {
 }
 
 func (s *Service) CreateUser(ctx context.Context, request CreateUserInput) (User, error) {
+	if s.txFactory == nil {
+		return User{}, fmt.Errorf("tx factory is nil")
+	}
+
 	name := strings.TrimSpace(request.Name)
 	email := strings.TrimSpace(strings.ToLower(request.Email))
 	age := request.Age
@@ -101,31 +108,40 @@ func (s *Service) CreateUser(ctx context.Context, request CreateUserInput) (User
 		return User{}, err
 	}
 
-	exists, err := s.repo.ExistsByEmail(ctx, email)
+	var created User
 
-	if err != nil {
-		return User{}, fmt.Errorf("create user: %w", err)
-	}
+	err = s.txFactory.WithinTx(ctx, func(stores TxStores) error {
+		exists, err := stores.UserRepo.ExistsByEmail(ctx, email)
 
-	if exists {
-		return User{}, NewEmailAlreadyExistsError()
-	}
-
-	created, err := s.repo.Create(ctx, User{
-		Name:         name,
-		Email:        email,
-		Age:          age,
-		PasswordHash: password,
-	})
-
-	if err != nil {
-		return User{}, fmt.Errorf("create user: %w", err)
-	}
-
-	if s.cache != nil {
-		if err := s.cache.DeleteUser(ctx, created.ID); err != nil {
-			slog.Warn("failed to invalidate cache", slog.Any("error", err))
+		if err != nil {
+			return fmt.Errorf("create user: %w", err)
 		}
+
+		if exists {
+			return NewEmailAlreadyExistsError()
+		}
+
+		created, err = stores.UserRepo.Create(ctx, User{
+			Name:         name,
+			Email:        email,
+			Age:          age,
+			PasswordHash: password,
+		})
+
+		if err != nil {
+			return fmt.Errorf("create user: %w", err)
+		}
+
+		err = createOutboxEvent(ctx, stores, created)
+
+		if err != nil {
+			return fmt.Errorf("create outbox event: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return User{}, err
 	}
 
 	return created, nil
@@ -251,7 +267,12 @@ func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 	}
 
 	if s.cache != nil {
-		_ = s.cache.DeleteUser(ctx, id)
+		if err := s.cache.DeleteUser(ctx, id); err != nil {
+			slog.Warn("failed to delete user from cache on user deletion",
+				"user_id", id,
+				slog.Any("error", err),
+			)
+		}
 	}
 
 	return nil
@@ -298,8 +319,8 @@ func (s *Service) CreateUserWithProfile(ctx context.Context, input CreateUserWit
 
 	var res ProfileWithUser
 
-	err = s.txFactory.WithinTx(ctx, func(repo Repository) error {
-		exists, err := repo.ExistsByEmail(ctx, email)
+	err = s.txFactory.WithinTx(ctx, func(stores TxStores) error {
+		exists, err := stores.UserRepo.ExistsByEmail(ctx, email)
 		if err != nil {
 			return fmt.Errorf("check email exists: %w", err)
 		}
@@ -308,7 +329,7 @@ func (s *Service) CreateUserWithProfile(ctx context.Context, input CreateUserWit
 			return NewEmailAlreadyExistsError()
 		}
 
-		createdUser, err := repo.Create(ctx, User{
+		createdUser, err := stores.UserRepo.Create(ctx, User{
 			Name:         name,
 			Email:        email,
 			Age:          age,
@@ -322,7 +343,7 @@ func (s *Service) CreateUserWithProfile(ctx context.Context, input CreateUserWit
 			return fmt.Errorf("create user: %w", err)
 		}
 
-		createdProfile, err := repo.CreateProfile(ctx, Profile{
+		createdProfile, err := stores.UserRepo.CreateProfile(ctx, Profile{
 			UserID: createdUser.ID,
 			Bio:    bio,
 		})
@@ -330,13 +351,10 @@ func (s *Service) CreateUserWithProfile(ctx context.Context, input CreateUserWit
 			return fmt.Errorf("create user profile: %w", err)
 		}
 
-		_, err = repo.CreateEvent(ctx, Event{
-			UserID:    createdUser.ID,
-			EventType: EventTypeUserCreated,
-			Payload:   `{"source":"api"}`,
-		})
+		err = createOutboxEvent(ctx, stores, createdUser)
+
 		if err != nil {
-			return fmt.Errorf("create user event: %w", err)
+			return fmt.Errorf("create outbox event: %w", err)
 		}
 
 		res = ProfileWithUser{
@@ -350,16 +368,10 @@ func (s *Service) CreateUserWithProfile(ctx context.Context, input CreateUserWit
 		return ProfileWithUser{}, err
 	}
 
-	if s.cache != nil {
-		if err := s.cache.DeleteUser(ctx, res.User.ID); err != nil {
-			slog.Warn("failed to invalidate cache", slog.Any("error", err))
-		}
-	}
-
 	return res, nil
 }
 
-func validateUserInput(name string, email string, age int) error {
+func validateUserInput(name string, email string, age int32) error {
 	fields := make(map[string]string)
 
 	if strings.TrimSpace(name) == "" {
@@ -382,6 +394,33 @@ func validateUserInput(name string, email string, age int) error {
 
 	if len(fields) > 0 {
 		return apperror.NewFieldValidationError(fields)
+	}
+
+	return nil
+}
+
+func createOutboxEvent(ctx context.Context, stores TxStores, created User) error {
+	payload, err := eventcodec.MarshalUserRegistered(
+		created.ID,
+		created.Email,
+		string(created.Role),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = stores.OutBoxStore.Create(ctx, outbox.Event{
+		EventType:     outbox.EventTypeUserRegistered,
+		AggregateType: outbox.AggregateUser,
+		AggregateID:   strconv.FormatInt(created.ID, 10),
+		Payload:       payload,
+		ContentType:   eventcodec.ContentTypeProtobuf,
+		ProtoMessage:  eventcodec.ProtoMessageUserRegistered,
+		EventVersion:  eventcodec.EventVersionV1,
+	})
+	if err != nil {
+		return fmt.Errorf("create user registered outbox event: %w", err)
 	}
 
 	return nil

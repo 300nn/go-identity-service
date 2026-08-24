@@ -12,7 +12,7 @@ func TestRedisCache_SetAndGetUser(t *testing.T) {
 	ctx := t.Context()
 
 	redisClient := testutils.NewTestRedisClient(t)
-	cache := user.NewRedisCache(redisClient, "test")
+	cache := user.NewRedisCache(redisClient, "test", time.Second)
 
 	usr := user.User{
 		ID:    1,
@@ -53,7 +53,7 @@ func TestRedisCache_DeleteUser(t *testing.T) {
 	ctx := t.Context()
 
 	redisClient := testutils.NewTestRedisClient(t)
-	cache := user.NewRedisCache(redisClient, "test")
+	cache := user.NewRedisCache(redisClient, "test", time.Second)
 
 	usr := user.User{
 		ID:    1,
@@ -85,7 +85,7 @@ func TestRedisCache_SetUser_WithTTL(t *testing.T) {
 	ctx := t.Context()
 
 	redisClient := testutils.NewTestRedisClient(t)
-	cache := user.NewRedisCache(redisClient, "test")
+	cache := user.NewRedisCache(redisClient, "test", time.Second)
 
 	usr := user.User{
 		ID:    1,

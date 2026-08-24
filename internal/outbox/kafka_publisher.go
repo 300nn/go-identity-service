@@ -1,6 +1,7 @@
 package outbox
 
 import (
+	"CrudTutorialProject/internal/timex"
 	"context"
 	"fmt"
 	"strconv"
@@ -14,11 +15,13 @@ type KafkaPublisherConfig struct {
 	Topic                 string
 	ProducerBatchMaxBytes int32
 	ProducerLinger        time.Duration
+	ProduceTimeout        time.Duration
 }
 
 type KafkaPublisher struct {
-	client *kgo.Client
-	topic  string
+	client         *kgo.Client
+	topic          string
+	produceTimeout time.Duration
 }
 
 func NewKafkaPublisher(cfg KafkaPublisherConfig) (*KafkaPublisher, error) {
@@ -50,12 +53,16 @@ func NewKafkaPublisher(cfg KafkaPublisherConfig) (*KafkaPublisher, error) {
 	}
 
 	return &KafkaPublisher{
-		client: client,
-		topic:  cfg.Topic,
+		client:         client,
+		topic:          cfg.Topic,
+		produceTimeout: cfg.ProduceTimeout,
 	}, nil
 }
 
 func (p *KafkaPublisher) Publish(ctx context.Context, event Event) error {
+	ctx, cancel := timex.WithTimeout(ctx, p.produceTimeout)
+	defer cancel()
+
 	record := kgo.Record{
 		Topic: p.topic,
 		Key:   []byte(event.AggregateType + ":" + event.AggregateID),

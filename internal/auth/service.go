@@ -13,7 +13,7 @@ import (
 	"CrudTutorialProject/internal/user"
 )
 
-const dummyPasswordHash = "$2a$12$e80yq9gIe67Cqg4a0d9I6.L971nJ9.xP7pB/64QZz.7iG8JgP1G2m"
+const dummyPasswordHash = "$2a$12$e80yq9gIe67Cqg4a0d9I6.L971nJ9.xP7pB/64QZz.7iG8JgP1G2m" // #nosec G101 -- fixed dummy bcrypt hash, not a credential; used to equalize login work for unknown users
 
 type UserStore interface {
 	Create(ctx context.Context, u user.User) (user.User, error)

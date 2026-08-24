@@ -15,6 +15,8 @@ import (
 	"CrudTutorialProject/internal/response"
 	"CrudTutorialProject/internal/user"
 	"CrudTutorialProject/internal/validation"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type testUserApp struct {
@@ -26,8 +28,10 @@ func newTestUserApp(t *testing.T) testUserApp {
 	t.Helper()
 
 	repo := newFakeRepository()
-	hasher := auth.NewPasswordHasher()
-	service := user.NewService(repo, nil, hasher)
+	outboxStore := newFakeOutboxStore()
+	txFactory := newFakeTxFactory(repo, outboxStore)
+	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
+	service := user.NewService(repo, txFactory, hasher)
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	validate := validation.New()

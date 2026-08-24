@@ -1,6 +1,7 @@
 package user
 
 import (
+	"CrudTutorialProject/internal/outbox"
 	"context"
 	"fmt"
 
@@ -8,7 +9,16 @@ import (
 )
 
 type TxRepositoryFactory interface {
-	WithinTx(ctx context.Context, fn func(repo Repository) error) error
+	WithinTx(ctx context.Context, fn func(stores TxStores) error) error
+}
+
+type TxStores struct {
+	UserRepo    Repository
+	OutBoxStore OutboxStore
+}
+
+type OutboxStore interface {
+	Create(ctx context.Context, event outbox.Event) (outbox.Event, error)
 }
 
 type PostgresTxRepositoryFactory struct {
@@ -21,7 +31,7 @@ func NewPostgresTxRepositoryFactory(pool *pgxpool.Pool) *PostgresTxRepositoryFac
 	}
 }
 
-func (f *PostgresTxRepositoryFactory) WithinTx(ctx context.Context, fn func(repo Repository) error) error {
+func (f *PostgresTxRepositoryFactory) WithinTx(ctx context.Context, fn func(stores TxStores) error) error {
 	tx, err := f.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
@@ -31,9 +41,12 @@ func (f *PostgresTxRepositoryFactory) WithinTx(ctx context.Context, fn func(repo
 		_ = tx.Rollback(ctx)
 	}()
 
-	txRepo := NewPostgresRepository(tx)
+	stores := TxStores{
+		UserRepo:    NewPostgresRepository(tx),
+		OutBoxStore: outbox.NewPostgresRepository(tx),
+	}
 
-	if err := fn(txRepo); err != nil {
+	if err := fn(stores); err != nil {
 		return err
 	}
 

@@ -1,17 +1,20 @@
 package kafkaconsumer
 
 import (
+	"CrudTutorialProject/internal/timex"
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 type Config struct {
-	Brokers       []string
-	Topic         string
-	ConsumerGroup string
+	Brokers        []string
+	Topic          string
+	ConsumerGroup  string
+	ProcessTimeout time.Duration
 }
 
 type ConsumerOption func(*Consumer)
@@ -25,11 +28,12 @@ func WithObserver(observer Observer) ConsumerOption {
 }
 
 type Consumer struct {
-	client    *kgo.Client
-	handler   EventHandler
-	txFactory TxFactory
-	logger    *slog.Logger
-	observer  Observer
+	client         *kgo.Client
+	handler        EventHandler
+	txFactory      TxFactory
+	logger         *slog.Logger
+	observer       Observer
+	processTimeout time.Duration
 }
 
 func NewConsumer(cfg Config, handler EventHandler, txFactory TxFactory, logger *slog.Logger, opts ...ConsumerOption) (*Consumer, error) {
@@ -62,11 +66,12 @@ func NewConsumer(cfg Config, handler EventHandler, txFactory TxFactory, logger *
 	}
 
 	cons := &Consumer{
-		client:    client,
-		handler:   handler,
-		txFactory: txFactory,
-		logger:    logger,
-		observer:  NoopObserver{},
+		client:         client,
+		handler:        handler,
+		txFactory:      txFactory,
+		logger:         logger,
+		observer:       NoopObserver{},
+		processTimeout: cfg.ProcessTimeout,
 	}
 
 	for _, opt := range opts {
@@ -130,8 +135,11 @@ func (c *Consumer) processRecord(ctx context.Context, record *kgo.Record) error 
 
 	var duplicate bool
 
-	err = c.txFactory.WithinTx(ctx, func(stores TxStores) error {
-		processed, err := stores.IdempotencyStore.WasProcessed(ctx, event.EventID)
+	processCtx, cancel := timex.WithTimeout(ctx, c.processTimeout)
+	defer cancel()
+
+	err = c.txFactory.WithinTx(processCtx, func(stores TxStores) error {
+		processed, err := stores.IdempotencyStore.WasProcessed(processCtx, event.EventID)
 		if err != nil {
 			return err
 		}
@@ -141,11 +149,11 @@ func (c *Consumer) processRecord(ctx context.Context, record *kgo.Record) error 
 			return nil
 		}
 
-		if err := c.handler.Handle(ctx, event, stores); err != nil {
+		if err := c.handler.Handle(processCtx, event, stores); err != nil {
 			return err
 		}
 
-		if err := stores.IdempotencyStore.MarkProcessed(ctx, event); err != nil {
+		if err := stores.IdempotencyStore.MarkProcessed(processCtx, event); err != nil {
 			return err
 		}
 

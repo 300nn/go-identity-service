@@ -97,7 +97,7 @@ func userToProto(usr user.User) *userapiv1.User {
 		Id:        usr.ID,
 		Name:      usr.Name,
 		Email:     usr.Email,
-		Age:       int32(usr.Age),
+		Age:       usr.Age,
 		Role:      string(usr.Role),
 		CreatedAt: timestamppb.New(usr.CreatedAt),
 		UpdatedAt: timestamppb.New(usr.UpdatedAt),

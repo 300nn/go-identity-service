@@ -10,7 +10,6 @@ dist
 coverage
 *.out
 
-config.yml
 
 Dockerfile
 docker-compose.yml

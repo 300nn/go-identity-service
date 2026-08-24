@@ -2,31 +2,42 @@ package user_test
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
 	"CrudTutorialProject/internal/apperror"
 	"CrudTutorialProject/internal/auth"
+	"CrudTutorialProject/internal/eventcodec"
+	"CrudTutorialProject/internal/outbox"
 	"CrudTutorialProject/internal/user"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type testApp struct {
-	repo    *FakeRepository
-	service *user.Service
-	hasher  user.Hasher
+	repo        *FakeRepository
+	outboxStore *fakeOutboxStore
+	txFactory   *fakeTxFactory
+	service     *user.Service
+	hasher      user.Hasher
 }
 
 func newTestApp(t *testing.T) *testApp {
 	t.Helper()
 
-	hasher := auth.NewPasswordHasher()
+	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
 	repo := newFakeRepository()
-	service := user.NewService(repo, nil, hasher)
+	outboxStore := newFakeOutboxStore()
+	txFactory := newFakeTxFactory(repo, outboxStore)
+	service := user.NewService(repo, txFactory, hasher)
 
 	return &testApp{
-		repo:    repo,
-		service: service,
-		hasher:  hasher,
+		repo:        repo,
+		outboxStore: outboxStore,
+		txFactory:   txFactory,
+		service:     service,
+		hasher:      hasher,
 	}
 }
 
@@ -53,11 +64,11 @@ func TestService_CreateUser_Success(t *testing.T) {
 	}
 
 	if got.Name != "John" {
-		t.Fatalf("expected name %q, got %q", "Alex", got.Name)
+		t.Fatalf("expected name %q, got %q", "John", got.Name)
 	}
 
 	if got.Email != "a@asdf.ru" {
-		t.Fatalf("expected email %q, got %q", "alex@example.com", got.Email)
+		t.Fatalf("expected email %q, got %q", "a@asdf.ru", got.Email)
 	}
 
 	if got.Age != 25 {
@@ -71,6 +82,8 @@ func TestService_CreateUser_Success(t *testing.T) {
 	if got.UpdatedAt.IsZero() {
 		t.Fatal("expected UpdatedAt to be set")
 	}
+
+	assertUserRegisteredOutboxEvent(t, app.outboxStore, got)
 }
 
 func TestService_CreateUser_DuplicateEmail(t *testing.T) {
@@ -98,6 +111,45 @@ func TestService_CreateUser_DuplicateEmail(t *testing.T) {
 
 	if !errors.Is(err, user.ErrEmailAlreadyExists) {
 		t.Fatalf("expected ErrEmailAlreadyExists, got %v", err)
+	}
+
+	if len(app.outboxStore.events) != 1 {
+		t.Fatalf("expected exactly 1 outbox event after duplicate attempt, got %d", len(app.outboxStore.events))
+	}
+}
+
+func TestService_CreateUser_OutboxFailure_RollsBackUser(t *testing.T) {
+	ctx := t.Context()
+	app := newTestApp(t)
+	app.outboxStore.createErr = errCreateOutboxEvent
+
+	got, err := app.service.CreateUser(ctx, user.CreateUserInput{
+		Name:     "Alex",
+		Email:    "alex@example.com",
+		Age:      25,
+		Password: "password123",
+	})
+	if err == nil {
+		t.Fatal("expected CreateUser error, got nil")
+	}
+
+	if !errors.Is(err, errCreateOutboxEvent) {
+		t.Fatalf("expected outbox error, got %v", err)
+	}
+	if got.ID != 0 {
+		t.Fatalf("expected zero user on rollback, got ID %d", got.ID)
+	}
+
+	exists, err := app.repo.ExistsByEmail(ctx, "alex@example.com")
+	if err != nil {
+		t.Fatalf("ExistsByEmail returned error: %v", err)
+	}
+	if exists {
+		t.Fatal("expected created user to be rolled back")
+	}
+
+	if len(app.outboxStore.events) != 0 {
+		t.Fatalf("expected no outbox events after rollback, got %d", len(app.outboxStore.events))
 	}
 }
 
@@ -201,6 +253,65 @@ func TestService_CreateUser_ValidationFields(t *testing.T) {
 
 	if validationErr.Fields["age"] == "" {
 		t.Fatal("expected validation error for field age")
+	}
+}
+
+func TestService_CreateUserWithProfile_CreatesOutboxEvent(t *testing.T) {
+	ctx := t.Context()
+	app := newTestApp(t)
+
+	result, err := app.service.CreateUserWithProfile(ctx, user.CreateUserWithProfileInput{
+		Name:     "Alex",
+		Email:    "alex.profile@example.com",
+		Age:      25,
+		Password: "password123",
+		Bio:      "Go developer",
+	})
+	if err != nil {
+		t.Fatalf("CreateUserWithProfile returned error: %v", err)
+	}
+
+	if result.Profile.UserID != result.User.ID {
+		t.Fatalf("expected profile user id %d, got %d", result.User.ID, result.Profile.UserID)
+	}
+
+	assertUserRegisteredOutboxEvent(t, app.outboxStore, result.User)
+}
+
+func TestService_CreateUserWithProfile_OutboxFailure_RollsBackUserAndProfile(t *testing.T) {
+	ctx := t.Context()
+	app := newTestApp(t)
+	app.outboxStore.createErr = errCreateOutboxEvent
+
+	_, err := app.service.CreateUserWithProfile(ctx, user.CreateUserWithProfileInput{
+		Name:     "Alex",
+		Email:    "alex.profile@example.com",
+		Age:      25,
+		Password: "password123",
+		Bio:      "Go developer",
+	})
+	if err == nil {
+		t.Fatal("expected CreateUserWithProfile error, got nil")
+	}
+
+	if !errors.Is(err, errCreateOutboxEvent) {
+		t.Fatalf("expected outbox error, got %v", err)
+	}
+
+	exists, err := app.repo.ExistsByEmail(ctx, "alex.profile@example.com")
+	if err != nil {
+		t.Fatalf("ExistsByEmail returned error: %v", err)
+	}
+	if exists {
+		t.Fatal("expected user to be rolled back")
+	}
+
+	if len(app.repo.profiles) != 0 {
+		t.Fatalf("expected profiles to be rolled back, got %d", len(app.repo.profiles))
+	}
+
+	if len(app.outboxStore.events) != 0 {
+		t.Fatalf("expected outbox events to be rolled back, got %d", len(app.outboxStore.events))
 	}
 }
 
@@ -453,6 +564,12 @@ func TestService_UpdateUser_UpdatesCache(t *testing.T) {
 		t.Fatalf("UpdateUser returned error: %v", err)
 	}
 
+	_, err = service.GetUser(ctx, created.ID)
+
+	if err != nil {
+		t.Fatalf("GetUser returned error: %v", err)
+	}
+
 	cached, ok := cache.users[created.ID]
 	if !ok {
 		t.Fatal("expected updated user to be cached")
@@ -494,5 +611,51 @@ func TestService_DeleteUser_DeletesCache(t *testing.T) {
 
 	if _, ok := cache.users[created.ID]; ok {
 		t.Fatal("expected user to be deleted from cache")
+	}
+}
+
+func assertUserRegisteredOutboxEvent(t *testing.T, store *fakeOutboxStore, usr user.User) {
+	t.Helper()
+
+	if len(store.events) != 1 {
+		t.Fatalf("expected 1 outbox event, got %d", len(store.events))
+	}
+
+	var event outbox.Event
+	for _, stored := range store.events {
+		event = stored
+	}
+
+	if event.EventType != outbox.EventTypeUserRegistered {
+		t.Fatalf("expected event type %q, got %q", outbox.EventTypeUserRegistered, event.EventType)
+	}
+	if event.AggregateType != outbox.AggregateUser {
+		t.Fatalf("expected aggregate type %q, got %q", outbox.AggregateUser, event.AggregateType)
+	}
+	if event.AggregateID != strconv.FormatInt(usr.ID, 10) {
+		t.Fatalf("expected aggregate id %q, got %q", strconv.FormatInt(usr.ID, 10), event.AggregateID)
+	}
+	if event.ContentType != eventcodec.ContentTypeProtobuf {
+		t.Fatalf("expected content type %q, got %q", eventcodec.ContentTypeProtobuf, event.ContentType)
+	}
+	if event.ProtoMessage != eventcodec.ProtoMessageUserRegistered {
+		t.Fatalf("expected proto message %q, got %q", eventcodec.ProtoMessageUserRegistered, event.ProtoMessage)
+	}
+	if event.EventVersion != eventcodec.EventVersionV1 {
+		t.Fatalf("expected event version %q, got %q", eventcodec.EventVersionV1, event.EventVersion)
+	}
+
+	payload, err := eventcodec.UnmarshalUserRegistered(event.Payload)
+	if err != nil {
+		t.Fatalf("UnmarshalUserRegistered returned error: %v", err)
+	}
+	if payload.GetUserId() != usr.ID {
+		t.Fatalf("expected payload user id %d, got %d", usr.ID, payload.GetUserId())
+	}
+	if payload.GetEmail() != usr.Email {
+		t.Fatalf("expected payload email %q, got %q", usr.Email, payload.GetEmail())
+	}
+	if payload.GetRole() != string(usr.Role) {
+		t.Fatalf("expected payload role %q, got %q", usr.Role, payload.GetRole())
 	}
 }

@@ -1,6 +1,7 @@
 package user
 
 import (
+	"CrudTutorialProject/internal/timex"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,14 +13,16 @@ import (
 )
 
 type RedisCache struct {
-	client *redis.Client
-	prefix string
+	client  *redis.Client
+	prefix  string
+	timeout time.Duration
 }
 
-func NewRedisCache(client *redis.Client, prefix string) *RedisCache {
+func NewRedisCache(client *redis.Client, prefix string, timeout time.Duration) *RedisCache {
 	return &RedisCache{
-		client: client,
-		prefix: prefix,
+		client:  client,
+		prefix:  prefix,
+		timeout: timeout,
 	}
 }
 
@@ -27,7 +30,7 @@ type cachedUser struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
-	Age       int       `json:"age"`
+	Age       int32     `json:"age"`
 	Role      Role      `json:"role"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -58,6 +61,9 @@ func (u cachedUser) toDomain() User {
 }
 
 func (c *RedisCache) GetUser(ctx context.Context, id int64) (User, bool, error) {
+	ctx, cancel := timex.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
 	raw, err := c.client.Get(ctx, c.userKey(id)).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -76,6 +82,9 @@ func (c *RedisCache) GetUser(ctx context.Context, id int64) (User, bool, error) 
 }
 
 func (c *RedisCache) SetUser(ctx context.Context, u User, ttl time.Duration) error {
+	ctx, cancel := timex.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
 	data, err := json.Marshal(cachedUserFromDomain(u))
 
 	if err != nil {
@@ -90,6 +99,9 @@ func (c *RedisCache) SetUser(ctx context.Context, u User, ttl time.Duration) err
 }
 
 func (c *RedisCache) DeleteUser(ctx context.Context, id int64) error {
+	ctx, cancel := timex.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
 	if err := c.client.Del(ctx, c.userKey(id)).Err(); err != nil {
 		return fmt.Errorf("delete user from redis cache failed: %w", err)
 	}

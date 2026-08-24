@@ -22,7 +22,7 @@ type User struct {
 	ID           int64
 	Name         string
 	Email        string
-	Age          int
+	Age          int32
 	Role         Role
 	PasswordHash string
 	CreatedAt    time.Time

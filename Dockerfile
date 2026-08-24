@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26.7-bookworm AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -41,7 +41,7 @@ COPY migrations /app/migrations
 
 USER nonroot:nonroot
 
-EXPOSE 8080
+EXPOSE 8080 50051
 
 STOPSIGNAL SIGTERM
 
