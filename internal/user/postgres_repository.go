@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/300nn/go-identity-service/internal/timex"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/300nn/go-identity-service/internal/timex"
 )
 
 type DBTX interface {
