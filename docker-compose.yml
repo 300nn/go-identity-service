@@ -111,6 +111,10 @@ services:
       APP_NAME: identity-service
       APP_VERSION: local
 
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:8081
+      CORS_ALLOWED_METHODS: GET,POST,PUT,DELETE,OPTIONS
+      CORS_ALLOWED_HEADERS: Authorization,Content-Type,X-Request-ID
+
       GRPC_HOST: 0.0.0.0
       GRPC_PORT: 50051
       GRPC_SHUTDOWN_TIMEOUT: 10s

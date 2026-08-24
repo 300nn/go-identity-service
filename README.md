@@ -197,6 +197,26 @@ docs/openapi.yml
 It describes authentication, user management, health/readiness endpoints, error responses, and JWT bearer
 authentication.
 
+### Swagger UI
+
+Swagger UI can be started as a separate documentation container:
+
+```bash
+docker compose -f docker-compose.docs.yml up -d
+```
+
+Open:
+
+```text
+http://localhost:8081
+```
+
+Stop Swagger UI:
+
+```bash
+docker compose -f docker-compose.docs.yml down
+```
+
 ## gRPC API
 
 The gRPC API is defined in:
