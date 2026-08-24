@@ -268,7 +268,7 @@ func initHealthModule(
 
 	if cfg.App.Environment == "local" {
 		mux.HandleFunc("GET /panic", func(w http.ResponseWriter, r *http.Request) {
-			panic("user_test panic")
+			panic("local test panic")
 		})
 	}
 
