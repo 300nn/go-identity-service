@@ -1,6 +1,6 @@
 app:
   name: "identity-service"
-  version: "user_test"
+  version: "local"
   environment: "local"
 
 http:

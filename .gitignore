@@ -1,16 +1,20 @@
 .idea/
 *.iml
-*.exe
-/bin/
 
-/dist/
+.env
+.env.prod
+config.yml
+
+*.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 
-.env
-.env.prod
+/bin/
+/dist/
+coverage/
+*.out
 
 go.work
 go.work.sum
