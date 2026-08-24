@@ -237,6 +237,14 @@ The service exposes gRPC on:
 localhost:50051
 ```
 
+Detailed gRPC usage examples are available in:
+
+```text
+docs/grpc.md
+```
+
+The document includes grpcurl examples, JWT metadata usage, reflection, GetUser, and ListUsers.
+
 ## Kafka and Transactional Outbox
 
 The service uses the transactional outbox pattern.
@@ -404,7 +412,5 @@ verifies that database migrations were applied.
 
 Planned improvements:
 
-- Add database operation timeouts to repositories
 - Add OpenTelemetry tracing
-- Improve REST API examples
-- Add architecture diagram
+- Add final repository polish
