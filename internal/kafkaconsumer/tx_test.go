@@ -3,6 +3,7 @@ package kafkaconsumer_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/300nn/go-identity-service/internal/kafkaconsumer"
 	"github.com/300nn/go-identity-service/internal/testutils"
@@ -14,8 +15,8 @@ func TestPostgresTxFactory_RollsBackOnError(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	txFactory := kafkaconsumer.NewPostgresTxFactory(pool)
-	idempotencyStore := kafkaconsumer.NewPostgresIdempotencyStore(pool)
+	txFactory := kafkaconsumer.NewPostgresTxFactory(pool, time.Second)
+	idempotencyStore := kafkaconsumer.NewPostgresIdempotencyStore(pool, time.Second)
 
 	event := kafkaconsumer.Event{
 		EventID:   "event-1",
@@ -50,8 +51,8 @@ func TestPostgresTxFactory_CommitsOnSuccess(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	txFactory := kafkaconsumer.NewPostgresTxFactory(pool)
-	idempotencyStore := kafkaconsumer.NewPostgresIdempotencyStore(pool)
+	txFactory := kafkaconsumer.NewPostgresTxFactory(pool, time.Second)
+	idempotencyStore := kafkaconsumer.NewPostgresIdempotencyStore(pool, time.Second)
 
 	event := kafkaconsumer.Event{
 		EventID:   "event-1",

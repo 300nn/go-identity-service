@@ -44,7 +44,7 @@ func NewHealthHandlers(
 	}
 }
 
-func (h *HealthHandlers) Health(w http.ResponseWriter, r *http.Request) {
+func (h *HealthHandlers) Health(w http.ResponseWriter, _ *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]string{
 		"status": "ok",
 	})

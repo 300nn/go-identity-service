@@ -3,6 +3,7 @@ package user_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/300nn/go-identity-service/internal/testutils"
 	"github.com/300nn/go-identity-service/internal/user"
@@ -14,7 +15,7 @@ func TestPostgresRepository_FindByID(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := user.NewPostgresRepository(pool)
+	repo := user.NewPostgresRepository(pool, time.Second)
 
 	created, err := repo.Create(ctx, user.User{
 		Name:         "Alex",
@@ -44,7 +45,7 @@ func TestPostgresRepository_FindByID_NotFound(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := user.NewPostgresRepository(pool)
+	repo := user.NewPostgresRepository(pool, time.Second)
 
 	_, err := repo.FindByID(ctx, 999)
 	if err == nil {
@@ -60,7 +61,7 @@ func TestPostgresRepository_Create_DuplicateEmail(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := user.NewPostgresRepository(pool)
+	repo := user.NewPostgresRepository(pool, time.Second)
 
 	_, err := repo.Create(ctx, user.User{
 		Name:         "Alex",
@@ -91,7 +92,7 @@ func TestPostgresRepository_List(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := user.NewPostgresRepository(pool)
+	repo := user.NewPostgresRepository(pool, time.Second)
 
 	_, err := repo.Create(ctx, user.User{
 		Name:         "Alex",

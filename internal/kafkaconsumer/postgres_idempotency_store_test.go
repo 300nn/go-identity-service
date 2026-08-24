@@ -2,6 +2,7 @@ package kafkaconsumer_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/300nn/go-identity-service/internal/kafkaconsumer"
 	"github.com/300nn/go-identity-service/internal/testutils"
@@ -11,7 +12,7 @@ func TestPostgresIdempotencyStore_MarkAndCheckProcessed(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	store := kafkaconsumer.NewPostgresIdempotencyStore(pool)
+	store := kafkaconsumer.NewPostgresIdempotencyStore(pool, time.Second)
 
 	event := kafkaconsumer.Event{
 		EventID:   "event-1",

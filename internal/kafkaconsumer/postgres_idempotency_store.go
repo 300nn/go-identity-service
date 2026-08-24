@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/300nn/go-identity-service/internal/timex"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -15,14 +17,18 @@ type DBTX interface {
 }
 
 type PostgresIdempotencyStore struct {
-	db DBTX
+	db           DBTX
+	queryTimeout time.Duration
 }
 
-func NewPostgresIdempotencyStore(db DBTX) *PostgresIdempotencyStore {
-	return &PostgresIdempotencyStore{db: db}
+func NewPostgresIdempotencyStore(db DBTX, timeout time.Duration) *PostgresIdempotencyStore {
+	return &PostgresIdempotencyStore{db: db, queryTimeout: timeout}
 }
 
 func (s *PostgresIdempotencyStore) WasProcessed(ctx context.Context, eventID string) (bool, error) {
+	ctx, cancel := timex.WithTimeout(ctx, s.queryTimeout)
+	defer cancel()
+
 	const query = `
 		select 1 
 		from processed_kafka_events 
@@ -43,6 +49,9 @@ func (s *PostgresIdempotencyStore) WasProcessed(ctx context.Context, eventID str
 }
 
 func (s *PostgresIdempotencyStore) MarkProcessed(ctx context.Context, event Event) error {
+	ctx, cancel := timex.WithTimeout(ctx, s.queryTimeout)
+	defer cancel()
+
 	const query = `
 		INSERT INTO processed_kafka_events (
 		    event_id,

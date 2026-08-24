@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/300nn/go-identity-service/internal/timex"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -15,14 +17,21 @@ type RefreshTokenDBTX interface {
 }
 
 type RefreshTokenRepository struct {
-	db RefreshTokenDBTX
+	db           RefreshTokenDBTX
+	queryTimeout time.Duration
 }
 
-func NewRefreshTokenRepository(db RefreshTokenDBTX) *RefreshTokenRepository {
-	return &RefreshTokenRepository{db: db}
+func NewRefreshTokenRepository(db RefreshTokenDBTX, timeout time.Duration) *RefreshTokenRepository {
+	return &RefreshTokenRepository{
+		db:           db,
+		queryTimeout: timeout,
+	}
 }
 
 func (r *RefreshTokenRepository) CreateRefreshToken(ctx context.Context, token RefreshToken) (RefreshToken, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const sql = `
 		INSERT INTO refresh_tokens (user_id, token_hash, expires_at) 
 		VALUES ($1, $2, $3)
@@ -48,6 +57,9 @@ func (r *RefreshTokenRepository) CreateRefreshToken(ctx context.Context, token R
 }
 
 func (r *RefreshTokenRepository) FindRefreshTokenByHash(ctx context.Context, hash string) (RefreshToken, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const sql = `
 		select id, user_id, token_hash, expires_at, revoked_at, created_at
 		from refresh_tokens 
@@ -80,6 +92,9 @@ func (r *RefreshTokenRepository) FindRefreshTokenByHash(ctx context.Context, has
 }
 
 func (r *RefreshTokenRepository) RevokeRefreshToken(ctx context.Context, id int64) error {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const sql = `
 		update refresh_tokens 
 		set revoked_at = now() 

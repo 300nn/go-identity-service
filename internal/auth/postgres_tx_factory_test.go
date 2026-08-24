@@ -3,6 +3,7 @@ package auth_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/300nn/go-identity-service/internal/auth"
 	"github.com/300nn/go-identity-service/internal/testutils"
@@ -13,7 +14,7 @@ func TestPostgresTxFactory_WithinTx_RollsBack(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	txFactory := auth.NewPostgresTxFactory(pool)
+	txFactory := auth.NewPostgresTxFactory(pool, time.Second)
 
 	expectedErr := errors.New("force rollback")
 
@@ -39,7 +40,7 @@ func TestPostgresTxFactory_WithinTx_RollsBack(t *testing.T) {
 		t.Fatalf("expected error %v, got %v", expectedErr, err)
 	}
 
-	userRepo := user.NewPostgresRepository(pool)
+	userRepo := user.NewPostgresRepository(pool, time.Second)
 
 	_, err = userRepo.FindByEmail(ctx, "rollback@example.com")
 	if err == nil {
@@ -55,7 +56,7 @@ func TestPostgresTxFactory_WithinTx_Commits(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	txFactory := auth.NewPostgresTxFactory(pool)
+	txFactory := auth.NewPostgresTxFactory(pool, time.Second)
 
 	var createdID int64
 
@@ -78,7 +79,7 @@ func TestPostgresTxFactory_WithinTx_Commits(t *testing.T) {
 		t.Fatalf("WithinTx returned error: %v", err)
 	}
 
-	userRepo := user.NewPostgresRepository(pool)
+	userRepo := user.NewPostgresRepository(pool, time.Second)
 
 	found, err := userRepo.FindByID(ctx, createdID)
 	if err != nil {

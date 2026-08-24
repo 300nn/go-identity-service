@@ -3,7 +3,9 @@ package audit
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/300nn/go-identity-service/internal/timex"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -14,16 +16,21 @@ type DBTX interface {
 }
 
 type PostgresStore struct {
-	db DBTX
+	db           DBTX
+	queryTimeout time.Duration
 }
 
-func NewPostgresStore(db DBTX) *PostgresStore {
+func NewPostgresStore(db DBTX, timeout time.Duration) *PostgresStore {
 	return &PostgresStore{
-		db: db,
+		db:           db,
+		queryTimeout: timeout,
 	}
 }
 
 func (s *PostgresStore) CreateUserAuditEvent(ctx context.Context, event UserAuditEvent) (UserAuditEvent, error) {
+	ctx, cancel := timex.WithTimeout(ctx, s.queryTimeout)
+	defer cancel()
+
 	const query = `
 		insert into user_audit_events (
 		    source_event_id,
@@ -65,6 +72,9 @@ func (s *PostgresStore) CreateUserAuditEvent(ctx context.Context, event UserAudi
 	return created, nil
 }
 func (s *PostgresStore) CountBySourceEventID(ctx context.Context, sourceEventID string) (int, error) {
+	ctx, cancel := timex.WithTimeout(ctx, s.queryTimeout)
+	defer cancel()
+
 	const query = `
 		select count(*) 
 		from user_audit_events 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/300nn/go-identity-service/internal/auth"
 	"github.com/300nn/go-identity-service/internal/eventcodec"
@@ -30,7 +31,7 @@ func countRows(t *testing.T, ctx context.Context, pool *pgxpool.Pool, query stri
 func TestPostgresTxRepositoryFactory_WithinTx_CommitsUserAndOutbox(t *testing.T) {
 	ctx := t.Context()
 	pool := testutils.NewTestPostgresPool(t)
-	txFactory := user.NewPostgresTxRepositoryFactory(pool)
+	txFactory := user.NewPostgresTxRepositoryFactory(pool, time.Second)
 
 	var createdID int64
 
@@ -61,7 +62,7 @@ func TestPostgresTxRepositoryFactory_WithinTx_CommitsUserAndOutbox(t *testing.T)
 		t.Fatalf("WithinTx returned error: %v", err)
 	}
 
-	repo := user.NewPostgresRepository(pool)
+	repo := user.NewPostgresRepository(pool, time.Second)
 	found, err := repo.FindByID(ctx, createdID)
 	if err != nil {
 		t.Fatalf("FindByID after commit returned error: %v", err)
@@ -86,7 +87,7 @@ func TestPostgresTxRepositoryFactory_WithinTx_CommitsUserAndOutbox(t *testing.T)
 func TestPostgresTxRepositoryFactory_WithinTx_RollsBackUserAndOutbox(t *testing.T) {
 	ctx := t.Context()
 	pool := testutils.NewTestPostgresPool(t)
-	txFactory := user.NewPostgresTxRepositoryFactory(pool)
+	txFactory := user.NewPostgresTxRepositoryFactory(pool, time.Second)
 
 	expectedErr := errors.New("force rollback")
 
@@ -122,7 +123,7 @@ func TestPostgresTxRepositoryFactory_WithinTx_RollsBackUserAndOutbox(t *testing.
 		t.Fatalf("expected rollback error %v, got %v", expectedErr, err)
 	}
 
-	repo := user.NewPostgresRepository(pool)
+	repo := user.NewPostgresRepository(pool, time.Second)
 	_, err = repo.FindByEmail(ctx, "rollback@example.com")
 	if err == nil {
 		t.Fatal("expected user not to be persisted after rollback")
@@ -141,8 +142,8 @@ func TestService_CreateUser_CommitsUserAndOutbox(t *testing.T) {
 	ctx := t.Context()
 	pool := testutils.NewTestPostgresPool(t)
 
-	repo := user.NewPostgresRepository(pool)
-	txFactory := user.NewPostgresTxRepositoryFactory(pool)
+	repo := user.NewPostgresRepository(pool, time.Second)
+	txFactory := user.NewPostgresTxRepositoryFactory(pool, time.Second)
 	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
 	service := user.NewService(repo, txFactory, hasher)
 
@@ -168,8 +169,8 @@ func TestService_CreateUserWithProfile_CommitsUserProfileAndOutbox(t *testing.T)
 	ctx := t.Context()
 	pool := testutils.NewTestPostgresPool(t)
 
-	repo := user.NewPostgresRepository(pool)
-	txFactory := user.NewPostgresTxRepositoryFactory(pool)
+	repo := user.NewPostgresRepository(pool, time.Second)
+	txFactory := user.NewPostgresTxRepositoryFactory(pool, time.Second)
 	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
 	service := user.NewService(repo, txFactory, hasher)
 
@@ -211,8 +212,8 @@ func TestService_CreateUserWithProfile_DuplicateEmail_DoesNotCreateSecondOutboxE
 	ctx := t.Context()
 	pool := testutils.NewTestPostgresPool(t)
 
-	repo := user.NewPostgresRepository(pool)
-	txFactory := user.NewPostgresTxRepositoryFactory(pool)
+	repo := user.NewPostgresRepository(pool, time.Second)
+	txFactory := user.NewPostgresTxRepositoryFactory(pool, time.Second)
 	hasher := auth.NewPasswordHasherWithCost(bcrypt.MinCost)
 	service := user.NewService(repo, txFactory, hasher)
 

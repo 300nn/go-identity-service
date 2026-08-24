@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/300nn/go-identity-service/internal/timex"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -17,16 +19,21 @@ type DBTX interface {
 }
 
 type PostgresRepository struct {
-	db DBTX
+	db           DBTX
+	queryTimeout time.Duration
 }
 
-func NewPostgresRepository(db DBTX) *PostgresRepository {
+func NewPostgresRepository(db DBTX, timeout time.Duration) *PostgresRepository {
 	return &PostgresRepository{
-		db: db,
+		db:           db,
+		queryTimeout: timeout,
 	}
 }
 
 func (r *PostgresRepository) Create(ctx context.Context, user User) (User, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const query = `
 		insert into users (name, email, age, password_hash, role)
 		values ($1, $2, $3, $4, $5)
@@ -60,6 +67,9 @@ func (r *PostgresRepository) Create(ctx context.Context, user User) (User, error
 	return created, nil
 }
 func (r *PostgresRepository) FindByID(ctx context.Context, id int64) (User, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const query = `
 		select id, name, email, age, role, created_at, updated_at 
 		from users
@@ -90,6 +100,9 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id int64) (User, erro
 }
 
 func (r *PostgresRepository) FindAll(ctx context.Context) ([]User, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const query = `
 		select id, name, email, age, role, created_at, updated_at 
 		from users
@@ -133,6 +146,9 @@ func (r *PostgresRepository) FindAll(ctx context.Context) ([]User, error) {
 }
 
 func (r *PostgresRepository) List(ctx context.Context, filter ListUsersFilter) (ListUsersResult, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	email := strings.TrimSpace(filter.Email)
 
 	const countQuery = `
@@ -190,6 +206,9 @@ func (r *PostgresRepository) List(ctx context.Context, filter ListUsersFilter) (
 }
 
 func (r *PostgresRepository) Update(ctx context.Context, user User) (User, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const query = `
 		UPDATE users
 		SET name = $1,
@@ -228,6 +247,9 @@ func (r *PostgresRepository) Update(ctx context.Context, user User) (User, error
 }
 
 func (r *PostgresRepository) FindByEmail(ctx context.Context, email string) (User, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const query = `
 		select id, name, email, age, role, password_hash, created_at, updated_at 
 		from users
@@ -258,6 +280,9 @@ func (r *PostgresRepository) FindByEmail(ctx context.Context, email string) (Use
 	return user, nil
 }
 func (r *PostgresRepository) Delete(ctx context.Context, id int64) error {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const query = `
 		delete from users where id = $1
 	`
@@ -274,6 +299,9 @@ func (r *PostgresRepository) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *PostgresRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const query = `
 		SELECT EXISTS (
 			SELECT 1
@@ -292,6 +320,9 @@ func (r *PostgresRepository) ExistsByEmail(ctx context.Context, email string) (b
 }
 
 func (r *PostgresRepository) CreateProfile(ctx context.Context, profile Profile) (Profile, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const query = `
 		INSERT INTO user_profiles (user_id, bio)
 		VALUES ($1, $2)

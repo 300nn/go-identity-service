@@ -86,7 +86,7 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		cfg.App.Name,
 	)
 
-	userRepo := user.NewPostgresRepository(dbPool)
+	userRepo := user.NewPostgresRepository(dbPool, cfg.Timeouts.DatabaseQuery)
 
 	validator := validation.New()
 
@@ -108,7 +108,7 @@ func Run(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 	authMiddleware := initAuthModule(mux, cfg, log, userRepo, validator, hasher, dbPool, redisClient, tokenManager)
 
-	userTxFactory := user.NewPostgresTxRepositoryFactory(dbPool)
+	userTxFactory := user.NewPostgresTxRepositoryFactory(dbPool, cfg.Timeouts.DatabaseQuery)
 	userCache := user.NewRedisCache(redisClient, "identity", cfg.Timeouts.RedisCommand)
 	observedUserCache := user.NewObservedCache(
 		userCache,
@@ -303,11 +303,11 @@ func initAuthModule(
 	redisClient *redis.Client,
 	tokenManager *auth.TokenManager,
 ) *auth.MiddleWare {
-	refreshStore := auth.NewRefreshTokenRepository(db)
+	refreshStore := auth.NewRefreshTokenRepository(db, cfg.Timeouts.DatabaseQuery)
 
 	refreshTokens := auth.NewRefreshTokenManager()
 
-	txFactory := auth.NewPostgresTxFactory(db)
+	txFactory := auth.NewPostgresTxFactory(db, cfg.Timeouts.DatabaseQuery)
 
 	authService := auth.NewService(
 		userRepo,
@@ -335,7 +335,7 @@ func initOutboxModule(
 	cfg *config.Config,
 	metrics *appmetrics.Metrics,
 ) (ShutdownFunc, error) {
-	outboxRepo := outbox.NewPostgresRepository(dbPool)
+	outboxRepo := outbox.NewPostgresRepository(dbPool, cfg.Timeouts.DatabaseQuery)
 
 	kafkaPublisher, err := outbox.NewKafkaPublisher(outbox.KafkaPublisherConfig{
 		Brokers:               cfg.Kafka.BrokerList(),
@@ -394,7 +394,7 @@ func initKafkaConsumerModule(
 	cfg *config.Config,
 	metrics *appmetrics.Metrics,
 ) (ShutdownFunc, error) {
-	txFactory := kafkaconsumer.NewPostgresTxFactory(dbPool)
+	txFactory := kafkaconsumer.NewPostgresTxFactory(dbPool, cfg.Timeouts.DatabaseQuery)
 
 	router := kafkaconsumer.NewRouter()
 	router.Register(

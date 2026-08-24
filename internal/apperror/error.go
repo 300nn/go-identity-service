@@ -19,14 +19,6 @@ func (e *PublicError) Unwrap() error {
 	return e.Err
 }
 
-func NewPublicError(status int, code string, message string) *PublicError {
-	return &PublicError{
-		Status:  status,
-		Code:    code,
-		Message: message,
-	}
-}
-
 func WrapPublicError(status int, code string, message string, err error) *PublicError {
 	return &PublicError{
 		Status:  status,

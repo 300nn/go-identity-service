@@ -3,6 +3,7 @@ package kafkaconsumer
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/300nn/go-identity-service/internal/audit"
 
@@ -19,12 +20,14 @@ type TxFactory interface {
 }
 
 type PostgresTxFactory struct {
-	pool *pgxpool.Pool
+	pool         *pgxpool.Pool
+	queryTimeout time.Duration
 }
 
-func NewPostgresTxFactory(pool *pgxpool.Pool) *PostgresTxFactory {
+func NewPostgresTxFactory(pool *pgxpool.Pool, timeout time.Duration) *PostgresTxFactory {
 	return &PostgresTxFactory{
-		pool: pool,
+		pool:         pool,
+		queryTimeout: timeout,
 	}
 }
 
@@ -35,12 +38,15 @@ func (f *PostgresTxFactory) WithinTx(ctx context.Context, fn func(TxStores) erro
 	}
 
 	stores := TxStores{
-		IdempotencyStore: NewPostgresIdempotencyStore(tx),
-		UserAuditStore:   audit.NewPostgresStore(tx),
+		IdempotencyStore: NewPostgresIdempotencyStore(tx, f.queryTimeout),
+		UserAuditStore:   audit.NewPostgresStore(tx, f.queryTimeout),
 	}
 
 	if err := fn(stores); err != nil {
-		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if rollbackErr := tx.Rollback(rollbackCtx); rollbackErr != nil {
 			return fmt.Errorf(
 				"rollback kafka consumer tx: %v; original error: %w",
 				rollbackErr,

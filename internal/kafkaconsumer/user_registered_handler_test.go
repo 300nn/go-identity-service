@@ -4,6 +4,7 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/300nn/go-identity-service/internal/audit"
 	"github.com/300nn/go-identity-service/internal/eventcodec"
@@ -15,8 +16,8 @@ func TestUserRegisteredHandler_Handle_CreateAuditEvent(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	txFactory := kafkaconsumer.NewPostgresTxFactory(pool)
-	auditStore := audit.NewPostgresStore(pool)
+	txFactory := kafkaconsumer.NewPostgresTxFactory(pool, time.Second)
+	auditStore := audit.NewPostgresStore(pool, time.Second)
 
 	handler := kafkaconsumer.NewUserRegisteredHandler(discardLogger())
 
@@ -70,8 +71,8 @@ func TestUserRegisteredHandler_Handle_RollbackAuditEvent(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	txFactory := kafkaconsumer.NewPostgresTxFactory(pool)
-	auditStore := audit.NewPostgresStore(pool)
+	txFactory := kafkaconsumer.NewPostgresTxFactory(pool, time.Second)
+	auditStore := audit.NewPostgresStore(pool, time.Second)
 
 	handler := kafkaconsumer.NewUserRegisteredHandler(discardLogger())
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/300nn/go-identity-service/internal/timex"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -16,16 +17,21 @@ type DBTX interface {
 }
 
 type PostgresRepository struct {
-	db DBTX
+	db           DBTX
+	queryTimeout time.Duration
 }
 
-func NewPostgresRepository(db DBTX) *PostgresRepository {
+func NewPostgresRepository(db DBTX, timeout time.Duration) *PostgresRepository {
 	return &PostgresRepository{
-		db: db,
+		db:           db,
+		queryTimeout: timeout,
 	}
 }
 
 func (r *PostgresRepository) Create(ctx context.Context, event Event) (Event, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const query = `
 		INSERT INTO outbox_events (
 		    event_type,
@@ -74,6 +80,9 @@ func (r *PostgresRepository) Create(ctx context.Context, event Event) (Event, er
 }
 
 func (r *PostgresRepository) FetchBatch(ctx context.Context, limit int, lockTimeout time.Duration) ([]Event, error) {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	if limit <= 0 {
 		return nil, nil
 	}
@@ -141,6 +150,9 @@ func (r *PostgresRepository) FetchBatch(ctx context.Context, limit int, lockTime
 }
 
 func (r *PostgresRepository) MarkProcessed(ctx context.Context, id int64) error {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const query = `
 		update outbox_events
 		set 
@@ -164,6 +176,9 @@ func (r *PostgresRepository) MarkProcessed(ctx context.Context, id int64) error 
 }
 
 func (r *PostgresRepository) MarkFailed(ctx context.Context, id int64, reason string, maxAttempts int) error {
+	ctx, cancel := timex.WithTimeout(ctx, r.queryTimeout)
+	defer cancel()
+
 	const query = `
 		update outbox_events
 		set 

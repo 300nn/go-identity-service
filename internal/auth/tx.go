@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/300nn/go-identity-service/internal/outbox"
 	"github.com/300nn/go-identity-service/internal/user"
@@ -25,12 +26,14 @@ type TxFactory interface {
 }
 
 type PostgresTxFactory struct {
-	pool *pgxpool.Pool
+	pool         *pgxpool.Pool
+	queryTimeout time.Duration
 }
 
-func NewPostgresTxFactory(pool *pgxpool.Pool) *PostgresTxFactory {
+func NewPostgresTxFactory(pool *pgxpool.Pool, queryTimeout time.Duration) *PostgresTxFactory {
 	return &PostgresTxFactory{
-		pool: pool,
+		pool:         pool,
+		queryTimeout: queryTimeout,
 	}
 }
 
@@ -41,13 +44,16 @@ func (f *PostgresTxFactory) WithinTx(ctx context.Context, fn func(stores TxStore
 	}
 
 	defer func() {
-		_ = tx.Rollback(ctx)
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_ = tx.Rollback(rollbackCtx)
 	}()
 
 	stores := TxStores{
-		UserStore:         user.NewPostgresRepository(tx),
-		RefreshTokenStore: NewRefreshTokenRepository(tx),
-		OutboxStore:       outbox.NewPostgresRepository(tx),
+		UserStore:         user.NewPostgresRepository(tx, f.queryTimeout),
+		RefreshTokenStore: NewRefreshTokenRepository(tx, f.queryTimeout),
+		OutboxStore:       outbox.NewPostgresRepository(tx, f.queryTimeout),
 	}
 
 	if err := fn(stores); err != nil {

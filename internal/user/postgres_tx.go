@@ -3,8 +3,10 @@ package user
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/300nn/go-identity-service/internal/outbox"
+	"github.com/300nn/go-identity-service/internal/timex"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -23,28 +25,36 @@ type OutboxStore interface {
 }
 
 type PostgresTxRepositoryFactory struct {
-	pool *pgxpool.Pool
+	pool         *pgxpool.Pool
+	queryTimeout time.Duration
 }
 
-func NewPostgresTxRepositoryFactory(pool *pgxpool.Pool) *PostgresTxRepositoryFactory {
+func NewPostgresTxRepositoryFactory(pool *pgxpool.Pool, timeout time.Duration) *PostgresTxRepositoryFactory {
 	return &PostgresTxRepositoryFactory{
-		pool: pool,
+		pool:         pool,
+		queryTimeout: timeout,
 	}
 }
 
 func (f *PostgresTxRepositoryFactory) WithinTx(ctx context.Context, fn func(stores TxStores) error) error {
+	ctx, cancel := timex.WithTimeout(ctx, f.queryTimeout)
+	defer cancel()
+
 	tx, err := f.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 
 	defer func() {
-		_ = tx.Rollback(ctx)
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		_ = tx.Rollback(rollbackCtx)
 	}()
 
 	stores := TxStores{
-		UserRepo:    NewPostgresRepository(tx),
-		OutBoxStore: outbox.NewPostgresRepository(tx),
+		UserRepo:    NewPostgresRepository(tx, f.queryTimeout),
+		OutBoxStore: outbox.NewPostgresRepository(tx, f.queryTimeout),
 	}
 
 	if err := fn(stores); err != nil {

@@ -12,7 +12,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := outbox.NewPostgresRepository(pool)
+	repo := outbox.NewPostgresRepository(pool, time.Second)
 
 	created, err := repo.Create(ctx, outbox.Event{
 		EventType:     outbox.EventTypeUserRegistered,
@@ -48,7 +48,7 @@ func TestPostgresRepository_Create_InvalidContentType(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := outbox.NewPostgresRepository(pool)
+	repo := outbox.NewPostgresRepository(pool, time.Second)
 
 	_, err := repo.Create(ctx, outbox.Event{
 		EventType:     outbox.EventTypeUserRegistered,
@@ -67,7 +67,7 @@ func TestPostgresRepository_FetchBatch(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := outbox.NewPostgresRepository(pool)
+	repo := outbox.NewPostgresRepository(pool, time.Second)
 
 	_, err := repo.Create(ctx, outbox.Event{
 		EventType:     outbox.EventTypeUserRegistered,
@@ -107,7 +107,7 @@ func TestPostgresRepository_MarkProcessed(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := outbox.NewPostgresRepository(pool)
+	repo := outbox.NewPostgresRepository(pool, time.Second)
 
 	_, err := repo.Create(ctx, outbox.Event{
 		EventType:     outbox.EventTypeUserRegistered,
@@ -144,7 +144,7 @@ func TestPostgresRepository_MarkFailed_ReturnsToNewWhenAttemptsRemain(t *testing
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := outbox.NewPostgresRepository(pool)
+	repo := outbox.NewPostgresRepository(pool, time.Second)
 
 	_, err := repo.Create(ctx, outbox.Event{
 		EventType:     outbox.EventTypeUserRegistered,
@@ -189,7 +189,7 @@ func TestPostgresRepository_MarkFailed_MarksFailedWhenMaxAttemptsReached(t *test
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := outbox.NewPostgresRepository(pool)
+	repo := outbox.NewPostgresRepository(pool, time.Second)
 
 	_, err := repo.Create(ctx, outbox.Event{
 		EventType:     outbox.EventTypeUserRegistered,
@@ -226,7 +226,7 @@ func TestPostgresRepository_FetchBatch_DoesNotFetchFreshProcessingEvent(t *testi
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := outbox.NewPostgresRepository(pool)
+	repo := outbox.NewPostgresRepository(pool, time.Second)
 
 	_, err := repo.Create(ctx, outbox.Event{
 		EventType:     outbox.EventTypeUserRegistered,
@@ -263,7 +263,7 @@ func TestPostgresRepository_FetchBatch_RefetchesStaleProcessingEvent(t *testing.
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	repo := outbox.NewPostgresRepository(pool)
+	repo := outbox.NewPostgresRepository(pool, time.Second)
 
 	_, err := repo.Create(ctx, outbox.Event{
 		EventType:     outbox.EventTypeUserRegistered,

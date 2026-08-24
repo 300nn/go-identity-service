@@ -16,8 +16,8 @@ func TestPostgresRefreshTokenRepository_CreateAndFindByHash(t *testing.T) {
 
 	pool := testutils.NewTestPostgresPool(t)
 
-	userRepo := user.NewPostgresRepository(pool)
-	refreshRepo := auth.NewRefreshTokenRepository(pool)
+	userRepo := user.NewPostgresRepository(pool, time.Second)
+	refreshRepo := auth.NewRefreshTokenRepository(pool, time.Second)
 
 	createdUser, err := userRepo.Create(ctx, user.User{
 		Name:         "Alex",
@@ -69,8 +69,8 @@ func TestPostgresRefreshTokenRepository_Revoke(t *testing.T) {
 
 	pool := testutils.NewTestPostgresPool(t)
 
-	userRepo := user.NewPostgresRepository(pool)
-	refreshRepo := auth.NewRefreshTokenRepository(pool)
+	userRepo := user.NewPostgresRepository(pool, time.Second)
+	refreshRepo := auth.NewRefreshTokenRepository(pool, time.Second)
 
 	createdUser, err := userRepo.Create(ctx, user.User{
 		Name:         "Alex",
@@ -117,7 +117,7 @@ func TestPostgresRefreshTokenRepository_FindByHash_NotFound(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	refreshRepo := auth.NewRefreshTokenRepository(pool)
+	refreshRepo := auth.NewRefreshTokenRepository(pool, time.Second)
 
 	_, err := refreshRepo.FindRefreshTokenByHash(ctx, "missing-hash")
 	if err == nil {

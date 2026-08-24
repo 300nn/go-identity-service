@@ -2,6 +2,7 @@ package audit_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/300nn/go-identity-service/internal/audit"
 	"github.com/300nn/go-identity-service/internal/testutils"
@@ -11,7 +12,7 @@ func TestPostgresStore_CreateUserAuditEvent(t *testing.T) {
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	store := audit.NewPostgresStore(pool)
+	store := audit.NewPostgresStore(pool, time.Second)
 
 	created, err := store.CreateUserAuditEvent(ctx, audit.UserAuditEvent{
 		SourceEventID: "event-1",
@@ -45,7 +46,7 @@ func TestPostgresStore_CreateUserAuditEvent_DuplicateSourceEventID(t *testing.T)
 	ctx := t.Context()
 
 	pool := testutils.NewTestPostgresPool(t)
-	store := audit.NewPostgresStore(pool)
+	store := audit.NewPostgresStore(pool, time.Second)
 
 	event := audit.UserAuditEvent{
 		SourceEventID: "event-1",
