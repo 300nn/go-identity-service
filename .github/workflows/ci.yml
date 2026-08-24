@@ -106,7 +106,7 @@ jobs:
     needs:
       - go
       - protobuf
-
+      - openapi
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -140,3 +140,19 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  openapi:
+    name: OpenAPI checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 26
+
+      - name: Lint OpenAPI
+        run: npx --yes @redocly/cli lint docs/openapi.yml

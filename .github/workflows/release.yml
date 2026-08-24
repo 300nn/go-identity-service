@@ -104,6 +104,7 @@ jobs:
     needs:
       - checks
       - protobuf
+      - openapi
 
     steps:
       - name: Checkout
@@ -158,3 +159,19 @@ jobs:
             --title "${GITHUB_REF_NAME}" \
             --generate-notes \
             --verify-tag
+
+  openapi:
+    name: Release OpenAPI checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 26
+
+      - name: Lint OpenAPI
+        run: npx --yes @redocly/cli lint docs/openapi.yml

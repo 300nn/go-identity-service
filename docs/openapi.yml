@@ -1,0 +1,1065 @@
+openapi: 3.0.3
+
+info:
+  title: go-identity-service API
+  version: 0.1.0
+  description: |
+    Production-like identity service written in Go.
+
+    The service provides REST endpoints for authentication, user management,
+    health checks, readiness checks, and Prometheus metrics.
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Auth
+    description: Authentication and token management
+  - name: Users
+    description: User management
+  - name: System
+    description: Health, readiness, service info and metrics
+
+security:
+  - bearerAuth: [ ]
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new user
+      operationId: register
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            examples:
+              default:
+                value:
+                  name: Alex
+                  email: alex@example.com
+                  age: 25
+                  password: password123
+      responses:
+        "201":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/EmailAlreadyExists"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login with email and password
+      operationId: login
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            examples:
+              default:
+                value:
+                  email: alex@example.com
+                  password: password123
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/InvalidCredentials"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Rotate refresh token and issue a new access token
+      operationId: refreshToken
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+            examples:
+              default:
+                value:
+                  refreshToken: refresh-token-value
+      responses:
+        "200":
+          description: Token refresh successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/RefreshTokenNotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout by revoking a refresh token
+      operationId: logout
+      security: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+            examples:
+              default:
+                value:
+                  refreshToken: refresh-token-value
+      responses:
+        "204":
+          description: Logout successful
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/RefreshTokenNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get current authenticated user
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/UserNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: List users
+      description: Requires ADMIN role.
+      operationId: listUsers
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: email
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 250
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            default: id_asc
+            enum:
+              - id_asc
+              - id_desc
+              - email_asc
+              - email_desc
+              - created_at_asc
+              - created_at_desc
+      responses:
+        "200":
+          description: User page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPage"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      tags:
+        - Users
+      summary: Create user
+      description: Requires ADMIN role.
+      operationId: createUser
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/EmailAlreadyExists"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users/with-profile:
+    post:
+      tags:
+        - Users
+      summary: Create user with profile
+      description: Requires ADMIN role.
+      operationId: createUserWithProfile
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserWithProfileRequest"
+      responses:
+        "201":
+          description: User and profile created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserWithProfileResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/EmailAlreadyExists"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users/by-email/{email}:
+    get:
+      tags:
+        - Users
+      summary: Get user by email
+      description: Requires ADMIN role. Email in the path should be URL-encoded.
+      operationId: getUserByEmail
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+            maxLength: 255
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/UserNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Requires ADMIN role or the authenticated user must match the requested user ID.
+      operationId: getUserById
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/InvalidUserId"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/UserNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    put:
+      tags:
+        - Users
+      summary: Update user
+      description: Requires ADMIN role or the authenticated user must match the requested user ID.
+      operationId: updateUser
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/UserNotFound"
+        "409":
+          $ref: "#/components/responses/EmailAlreadyExists"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: Requires ADMIN role.
+      operationId: deleteUser
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: User deleted
+        "400":
+          $ref: "#/components/responses/InvalidUserId"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/UserNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /health:
+    get:
+      tags:
+        - System
+      summary: Liveness check
+      operationId: health
+      security: [ ]
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /ready:
+    get:
+      tags:
+        - System
+      summary: Readiness check
+      operationId: ready
+      security: [ ]
+      responses:
+        "200":
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: Service is not ready or is shutting down
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+
+  /ping:
+    get:
+      tags:
+        - System
+      summary: Ping endpoint
+      operationId: ping
+      security: [ ]
+      responses:
+        "200":
+          description: Pong response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PingResponse"
+
+  /info:
+    get:
+      tags:
+        - System
+      summary: Service info
+      operationId: info
+      security: [ ]
+      responses:
+        "200":
+          description: Service information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfoResponse"
+
+  /version:
+    get:
+      tags:
+        - System
+      summary: Service version
+      operationId: version
+      security: [ ]
+      responses:
+        "200":
+          description: Service version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionResponse"
+
+  /metrics:
+    get:
+      tags:
+        - System
+      summary: Prometheus metrics
+      operationId: metrics
+      security: [ ]
+      responses:
+        "200":
+          description: Prometheus metrics in text format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: validation_error
+              message: Validation failed
+              fields:
+                email: must be a valid email
+
+    InvalidUserId:
+      description: Invalid user ID
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: invalid_user_id
+              message: Invalid user id
+
+    UserNotFound:
+      description: User not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: user_not_found
+              message: User not found
+
+    EmailAlreadyExists:
+      description: Email already exists
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: email_already_exists
+              message: Email already exists
+
+    InvalidCredentials:
+      description: Invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: invalid_credentials
+              message: invalid email or password
+
+    RefreshTokenNotFound:
+      description: Refresh token not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: refresh_token_not_found
+              message: Refresh token not found
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: unauthorized
+              message: unauthorized
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: forbidden
+              message: Forbidden
+
+    TooManyRequests:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: rate_limited
+              message: Too many requests
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+          example:
+            error:
+              code: internal_error
+              message: Internal server error
+
+  schemas:
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Alex
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: alex@example.com
+        age:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 150
+          example: 25
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+          format: password
+          example: password123
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: alex@example.com
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+          format: password
+          example: password123
+
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          example: refresh-token-value
+
+    LogoutRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          example: refresh-token-value
+
+    CreateUserRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Alex
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: alex@example.com
+        age:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 150
+          example: 25
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+          format: password
+          example: password123
+
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Alex Updated
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: alex.updated@example.com
+        age:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 150
+          example: 26
+
+    CreateUserWithProfileRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Alex
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: alex@example.com
+        age:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 150
+          example: 25
+        bio:
+          type: string
+          maxLength: 1000
+          example: Go backend developer
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+          format: password
+          example: password123
+
+    AuthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - accessToken
+        - tokenType
+        - refreshToken
+        - user
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        tokenType:
+          type: string
+          example: Bearer
+        refreshToken:
+          type: string
+          example: refresh-token-value
+        user:
+          $ref: "#/components/schemas/UserResponse"
+
+    MeResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - user
+      properties:
+        user:
+          $ref: "#/components/schemas/UserResponse"
+
+    UserResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - email
+        - age
+        - role
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: Alex
+        email:
+          type: string
+          format: email
+          example: alex@example.com
+        age:
+          type: integer
+          format: int32
+          example: 25
+        role:
+          $ref: "#/components/schemas/Role"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Role:
+      type: string
+      enum:
+        - USER
+        - ADMIN
+
+    UserWithProfileResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - user
+        - profile
+      properties:
+        user:
+          $ref: "#/components/schemas/UserResponse"
+        profile:
+          $ref: "#/components/schemas/ProfileResponse"
+
+    ProfileResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - userId
+        - bio
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        userId:
+          type: integer
+          format: int64
+          example: 1
+        bio:
+          type: string
+          example: Go backend developer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - pagination
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserResponse"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    Pagination:
+      type: object
+      additionalProperties: false
+      required:
+        - limit
+        - offset
+        - total
+      properties:
+        limit:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+        total:
+          type: integer
+          format: int64
+          example: 100
+
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorInfo"
+
+    ErrorInfo:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: validation_error
+        message:
+          type: string
+          example: Validation failed
+        fields:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            email: must be a valid email
+
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ReadinessResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - checks
+      properties:
+        status:
+          type: string
+          enum:
+            - ready
+            - not_ready
+            - shutting_down
+          example: ready
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            database: ok
+            redis: ok
+            kafka: ok
+
+    PingResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: pong
+
+    InfoResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - version
+        - environment
+      properties:
+        name:
+          type: string
+          example: identity-service
+        version:
+          type: string
+          example: 0.1.0
+        environment:
+          type: string
+          example: staging
+
+    VersionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - version
+      properties:
+        name:
+          type: string
+          example: identity-service
+        version:
+          type: string
+          example: 0.1.0

@@ -188,6 +188,15 @@ curl -X POST http://localhost:8080/auth/register \
   }'
 ```
 
+The OpenAPI specification is available in:
+
+```text
+docs/openapi.yml
+```
+
+It describes authentication, user management, health/readiness endpoints, error responses, and JWT bearer
+authentication.
+
 ## gRPC API
 
 The gRPC API is defined in:
